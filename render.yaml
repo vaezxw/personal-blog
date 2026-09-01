@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: personal-blog-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
