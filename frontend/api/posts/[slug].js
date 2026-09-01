@@ -1,12 +1,12 @@
-const {
+import {
   getStore,
   send,
   readBody,
   requireAdmin,
   simpleMarkdown,
-} = require('../_store.js')
+} from '../_store.js'
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return send(res, 204, '')
   }
@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost')
   const parts = url.pathname.split('/').filter(Boolean)
   const param = decodeURIComponent(parts[parts.length - 1] || '')
-  const posts = getStore(req)
+  const posts = getStore()
 
   if (req.method === 'GET') {
     const includeDrafts = url.searchParams.get('preview') === '1'

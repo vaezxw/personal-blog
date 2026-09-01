@@ -47,7 +47,7 @@ cd frontend && npm run dev
   },
 ]
 
-function getStore(req) {
+export function getStore() {
   const g = globalThis
   if (!g.__blogPosts) {
     g.__blogPosts = seed()
@@ -55,7 +55,7 @@ function getStore(req) {
   return g.__blogPosts
 }
 
-function send(res, status, body) {
+export function send(res, status, body) {
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -64,7 +64,7 @@ function send(res, status, body) {
   res.end(typeof body === 'string' ? body : JSON.stringify(body))
 }
 
-function readBody(req) {
+export function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = ''
     req.on('data', (chunk) => {
@@ -87,7 +87,7 @@ function getToken(req) {
   return header.startsWith('Bearer ') ? header.slice(7) : ''
 }
 
-function requireAdmin(req, res) {
+export function requireAdmin(req, res) {
   const expected = process.env.ADMIN_TOKEN || 'dev-admin-token'
   if (getToken(req) !== expected) {
     send(res, 401, { error: 'Unauthorized' })
@@ -103,7 +103,7 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
 }
 
-function simpleMarkdown(md) {
+export function simpleMarkdown(md) {
   const escaped = escapeHtml(md || '')
   const withCode = escaped.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
   const lines = withCode.split(/\n/)
@@ -148,12 +148,4 @@ function simpleMarkdown(md) {
   }
   if (inList) html.push('</ul>')
   return html.join('\n')
-}
-
-module.exports = {
-  getStore,
-  send,
-  readBody,
-  requireAdmin,
-  simpleMarkdown,
 }

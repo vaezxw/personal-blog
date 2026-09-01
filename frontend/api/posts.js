@@ -1,16 +1,16 @@
-const {
+import {
   getStore,
   send,
   readBody,
   requireAdmin,
-} = require('./_store.js')
+} from './_store.js'
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return send(res, 204, '')
   }
 
-  const posts = getStore(req)
+  const posts = getStore()
 
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://localhost')
