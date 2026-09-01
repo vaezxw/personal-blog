@@ -47,6 +47,13 @@ cd frontend
 npx vercel --prod
 ```
 
+当前已部署示例地址：
+
+- https://mohhen-blog.vercel.app
+- https://frontend-tau-ten-irvfp6w6t4.vercel.app
+
+管理页 `/admin`，令牌默认可用 `dev-admin-token`（上线后请在 Vercel 环境变量改成 `ADMIN_TOKEN`）。
+
 ### 方案 B：前端 Vercel + 后端 Render（持久化）
 
 1. 前端：Vercel，Root = `frontend`，设置 `VITE_API_BASE=https://your-api.onrender.com`
