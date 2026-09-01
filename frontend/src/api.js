@@ -61,6 +61,13 @@ export function fetchPosts() {
   return request('/api/posts')
 }
 
+export function searchSite(q, limit = 20) {
+  const params = new URLSearchParams()
+  params.set('q', String(q || '').trim())
+  if (limit) params.set('limit', String(limit))
+  return request(`/api/search?${params.toString()}`)
+}
+
 export function fetchPost(slug, preview = false) {
   const qs = preview ? '?preview=1' : ''
   return request(`/api/posts/${encodeURIComponent(slug)}${qs}`)

@@ -20,6 +20,7 @@ const router = createRouter({
     },
     { path: '/about', name: 'about', component: AboutView },
     { path: '/admin', name: 'admin', component: AdminView },
+    { path: '/search', redirect: '/' },
   ],
   scrollBehavior(to) {
     if (to.hash) {

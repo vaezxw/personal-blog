@@ -9,6 +9,7 @@
           <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">
+          <SiteSearch />
           <div v-if="currentUser" class="notify-wrap" ref="notifyWrapRef">
             <button
               type="button"
@@ -124,6 +125,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import SiteSearch from './components/SiteSearch.vue'
 import {
   fetchNotifications,
   fetchUnreadCount,
