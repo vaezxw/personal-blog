@@ -4,5 +4,6 @@ dist/
 .DS_Store
 *.log
 .vercel
+.wrangler
 frontend/dist/
 backend/data/posts.json

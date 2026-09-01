@@ -4,7 +4,7 @@
       <RouterLink class="brand" to="/">墨痕</RouterLink>
       <nav class="nav">
         <RouterLink to="/">文章</RouterLink>
-        <RouterLink to="/about">关于</RouterLink>
+        <RouterLink to="/about">关于我</RouterLink>
         <RouterLink to="/admin">管理</RouterLink>
       </nav>
     </header>

@@ -2,16 +2,44 @@
   <section class="admin">
     <p class="eyebrow">Admin</p>
     <h1>文章管理</h1>
-    <p class="lede">使用后端配置的 ADMIN_TOKEN 登录后，可发布、编辑与删除文章。</p>
+    <p class="lede">注册或登录后可发布文章。登录态保存在 httpOnly Cookie，支持刷新令牌。</p>
 
-    <form class="panel" @submit.prevent="saveToken">
-      <label for="token">Admin Token</label>
-      <div class="row">
-        <input id="token" v-model="tokenInput" type="password" autocomplete="current-password" placeholder="粘贴管理令牌" />
-        <button type="submit" class="btn">保存</button>
+    <div v-if="!user" class="panel">
+      <div class="row tabs">
+        <button type="button" class="btn" :class="{ ghost: mode !== 'login' }" @click="mode = 'login'">登录</button>
+        <button type="button" class="btn" :class="{ ghost: mode !== 'register' }" @click="mode = 'register'">注册</button>
       </div>
-      <p v-if="token" class="ok">已保存令牌（仅存于本机浏览器）。</p>
-    </form>
+
+      <form v-if="mode === 'login'" class="auth-form" @submit.prevent="doLogin">
+        <label>邮箱或用户名</label>
+        <input v-model="auth.login" required autocomplete="username" placeholder="email 或 username" />
+        <label>密码</label>
+        <input v-model="auth.password" type="password" required autocomplete="current-password" placeholder="至少 6 位" />
+        <button class="btn" type="submit" :disabled="authBusy">{{ authBusy ? '登录中…' : '登录' }}</button>
+        <p v-if="authError" class="error">{{ authError }}</p>
+      </form>
+
+      <form v-else class="auth-form" @submit.prevent="doRegister">
+        <label>邮箱</label>
+        <input v-model="auth.email" type="email" required autocomplete="email" placeholder="you@example.com" />
+        <label>用户名</label>
+        <input v-model="auth.username" required autocomplete="username" placeholder="2-32 个字符" />
+        <label>密码</label>
+        <input v-model="auth.password" type="password" required autocomplete="new-password" placeholder="至少 6 位" />
+        <button class="btn" type="submit" :disabled="authBusy">{{ authBusy ? '注册中…' : '注册' }}</button>
+        <p v-if="authError" class="error">{{ authError }}</p>
+      </form>
+    </div>
+
+    <div v-else class="panel">
+      <div class="row between">
+        <p class="ok">
+          已登录：<strong>{{ user.username }}</strong>
+          <span class="muted">（{{ user.role === 'admin' ? '管理员' : '作者' }}）</span>
+        </p>
+        <button class="btn ghost" type="button" @click="doLogout">退出</button>
+      </div>
+    </div>
 
     <form class="panel" @submit.prevent="submitPost">
       <h2>{{ editingId ? '编辑文章' : '发布新文章' }}</h2>
@@ -22,13 +50,14 @@
       <label>摘要</label>
       <input v-model="form.excerpt" placeholder="列表页显示的一句话" />
       <label>正文（Markdown）</label>
-      <textarea v-model="form.content" rows="12" placeholder="支持 Markdown"></textarea>
+      <textarea v-model="form.content" rows="12" placeholder="支持 Markdown；图片可用外链 ![](https://...)"></textarea>
+      <p class="muted upload-note">图片上传（R2）暂未启用，可在正文中使用外链图片。</p>
       <label class="check">
         <input v-model="form.published" type="checkbox" />
         立即发布
       </label>
       <div class="row">
-        <button class="btn" type="submit" :disabled="!token || saving">
+        <button class="btn" type="submit" :disabled="!user || saving">
           {{ saving ? '保存中…' : editingId ? '更新' : '创建' }}
         </button>
         <button v-if="editingId" class="btn ghost" type="button" @click="resetForm">取消编辑</button>
@@ -39,17 +68,20 @@
 
     <div class="panel">
       <div class="row between">
-        <h2>全部文章</h2>
-        <button class="btn ghost" type="button" :disabled="!token || loading" @click="loadPosts">刷新</button>
+        <h2>我的文章</h2>
+        <button class="btn ghost" type="button" :disabled="!user || loading" @click="loadPosts">刷新</button>
       </div>
-      <p v-if="!token" class="muted">请先保存 Admin Token。</p>
+      <p v-if="!user" class="muted">请先登录。</p>
       <p v-else-if="loading" class="muted">加载中…</p>
       <p v-else-if="listError" class="error">{{ listError }}</p>
       <ul v-else class="admin-list">
         <li v-for="post in posts" :key="post.id">
           <div>
             <strong>{{ post.title }}</strong>
-            <span class="muted"> / {{ post.slug }} · {{ post.published ? '已发布' : '草稿' }}</span>
+            <span class="muted">
+              / {{ post.slug }} · {{ post.published ? '已发布' : '草稿' }}
+              <template v-if="post.authorUsername"> · {{ post.authorUsername }}</template>
+            </span>
           </div>
           <div class="row">
             <button class="btn ghost" type="button" @click="editPost(post)">编辑</button>
@@ -63,12 +95,23 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { createPost, deletePost, fetchAllPosts, updatePost } from '../api'
+import {
+  createPost,
+  deletePost,
+  fetchAllPosts,
+  getStoredUser,
+  login,
+  logout,
+  me,
+  register,
+  setStoredUser,
+  updatePost,
+} from '../api'
 
-const TOKEN_KEY = 'blog_admin_token'
-
-const token = ref(localStorage.getItem(TOKEN_KEY) || '')
-const tokenInput = ref(token.value)
+const user = ref(getStoredUser())
+const mode = ref('login')
+const authBusy = ref(false)
+const authError = ref('')
 const posts = ref([])
 const loading = ref(false)
 const listError = ref('')
@@ -76,6 +119,13 @@ const saving = ref(false)
 const formError = ref('')
 const formOk = ref('')
 const editingId = ref('')
+
+const auth = reactive({
+  login: '',
+  email: '',
+  username: '',
+  password: '',
+})
 
 const form = reactive({
   title: '',
@@ -85,10 +135,57 @@ const form = reactive({
   published: true,
 })
 
-function saveToken() {
-  token.value = tokenInput.value.trim()
-  localStorage.setItem(TOKEN_KEY, token.value)
-  loadPosts()
+function applyUser(nextUser) {
+  user.value = nextUser
+  setStoredUser(nextUser)
+}
+
+async function doLogout() {
+  try {
+    await logout()
+  } catch {
+    /* ignore */
+  }
+  applyUser(null)
+  posts.value = []
+  resetForm()
+}
+
+async function doLogin() {
+  authBusy.value = true
+  authError.value = ''
+  try {
+    const data = await login({
+      email: auth.login,
+      password: auth.password,
+    })
+    applyUser(data.user)
+    auth.password = ''
+    await loadPosts()
+  } catch (err) {
+    authError.value = err.message || '登录失败'
+  } finally {
+    authBusy.value = false
+  }
+}
+
+async function doRegister() {
+  authBusy.value = true
+  authError.value = ''
+  try {
+    const data = await register({
+      email: auth.email,
+      username: auth.username,
+      password: auth.password,
+    })
+    applyUser(data.user)
+    auth.password = ''
+    await loadPosts()
+  } catch (err) {
+    authError.value = err.message || '注册失败'
+  } finally {
+    authBusy.value = false
+  }
 }
 
 function resetForm() {
@@ -114,21 +211,22 @@ function editPost(post) {
 }
 
 async function loadPosts() {
-  if (!token.value) return
+  if (!user.value) return
   loading.value = true
   listError.value = ''
   try {
-    posts.value = await fetchAllPosts(token.value)
+    posts.value = await fetchAllPosts()
   } catch (err) {
     listError.value = err.message || '加载失败'
+    if (String(err.message || '').includes('Unauthorized')) await doLogout()
   } finally {
     loading.value = false
   }
 }
 
 async function submitPost() {
-  if (!token.value) {
-    formError.value = '请先保存 Admin Token'
+  if (!user.value) {
+    formError.value = '请先登录'
     return
   }
   saving.value = true
@@ -143,10 +241,10 @@ async function submitPost() {
       published: form.published,
     }
     if (editingId.value) {
-      await updatePost(token.value, editingId.value, payload)
+      await updatePost(editingId.value, payload)
       formOk.value = '已更新'
     } else {
-      await createPost(token.value, payload)
+      await createPost(payload)
       formOk.value = '已创建'
     }
     resetForm()
@@ -159,10 +257,10 @@ async function submitPost() {
 }
 
 async function removePost(post) {
-  if (!token.value) return
+  if (!user.value) return
   if (!confirm(`确认删除「${post.title}」？`)) return
   try {
-    await deletePost(token.value, post.id)
+    await deletePost(post.id)
     if (editingId.value === post.id) resetForm()
     await loadPosts()
   } catch (err) {
@@ -170,5 +268,37 @@ async function removePost(post) {
   }
 }
 
-onMounted(loadPosts)
+async function restoreSession() {
+  try {
+    const data = await me()
+    applyUser(data.user)
+    await loadPosts()
+  } catch {
+    applyUser(null)
+  }
+}
+
+onMounted(restoreSession)
 </script>
+
+<style scoped>
+.tabs {
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.auth-form .btn {
+  margin-top: 0.4rem;
+  justify-self: start;
+}
+
+.upload-note {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.9rem;
+}
+</style>

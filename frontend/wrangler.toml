@@ -1,0 +1,14 @@
+name = "mohhen-blog"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mohhen-blog-db"
+database_id = "3fb3a441-643c-4668-b440-7a3a100c277d"
+preview_database_id = "DB"
+
+# 在 Cloudflare 控制台启用 R2 并创建 mohhen-blog-media 后取消注释：
+# [[r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "mohhen-blog-media"

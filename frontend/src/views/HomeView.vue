@@ -11,6 +11,7 @@
     <article v-for="post in posts" :key="post.id" class="post-row">
       <div class="post-meta">
         <time :datetime="post.createdAt">{{ formatDate(post.createdAt) }}</time>
+        <span v-if="post.authorUsername" class="muted"> · {{ post.authorUsername }}</span>
       </div>
       <div class="post-body">
         <h2>
