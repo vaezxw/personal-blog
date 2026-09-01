@@ -18,7 +18,11 @@
       <p v-else class="eyebrow">
         <time :datetime="post.createdAt">{{ formatDate(post.createdAt) }}</time>
       </p>
-      <h1>{{ post.title }}</h1>
+      <h1>
+        {{ post.title }}
+        <span v-if="post.visibility === 'friends'" class="vis-badge">{{ t('post.badgeFriends') }}</span>
+        <span v-else-if="post.visibility === 'private'" class="vis-badge private">{{ t('post.badgePrivate') }}</span>
+      </h1>
     </header>
 
     <div id="likes" class="engage-bar" :class="{ flash: highlightTarget === 'likes' }">
@@ -347,7 +351,15 @@ async function load() {
     post.value = await fetchPost(props.slug)
     await Promise.all([loadComments(), trackView()])
   } catch (err) {
-    error.value = err.message || t('post.loadFailed')
+    if (err.status === 401 && (err.code === 'friends' || err.code === 'private')) {
+      error.value = t('post.loginForVisibility')
+    } else if (err.code === 'friends') {
+      error.value = t('post.friendsOnly')
+    } else if (err.code === 'private') {
+      error.value = t('post.privateOnly')
+    } else {
+      error.value = err.message || t('post.loadFailed')
+    }
   } finally {
     loading.value = false
     await scrollToHashTarget()

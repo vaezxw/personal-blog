@@ -249,10 +249,20 @@
         <p v-if="mdImportError" class="error">{{ mdImportError }}</p>
 
         <div class="composer-foot">
-          <label class="check">
-            <input v-model="form.published" type="checkbox" />
-            {{ t('admin.publishNow') }}
-          </label>
+          <div class="composer-opts">
+            <label class="check">
+              <input v-model="form.published" type="checkbox" />
+              {{ t('admin.publishNow') }}
+            </label>
+            <label class="vis-field">
+              <span>{{ t('admin.fieldVisibility') }}</span>
+              <select v-model="form.visibility">
+                <option value="public">{{ t('admin.visibilityPublic') }}</option>
+                <option value="friends">{{ t('admin.visibilityFriends') }}</option>
+                <option value="private">{{ t('admin.visibilityPrivate') }}</option>
+              </select>
+            </label>
+          </div>
           <div class="row">
             <button class="btn" type="submit" :disabled="saving">
               {{
@@ -268,6 +278,7 @@
             </button>
           </div>
         </div>
+        <p class="muted upload-note">{{ t('admin.visibilityHint') }}</p>
         <p v-if="formError" class="error">{{ formError }}</p>
         <p v-if="formOk" class="ok">{{ formOk }}</p>
       </form>
@@ -289,6 +300,7 @@
               <span class="muted">
                 / {{ post.slug }} ·
                 {{ post.published ? t('admin.published') : t('admin.draft') }}
+                · {{ visibilityLabel(post.visibility) }}
                 <template v-if="post.authorUsername"> · {{ post.authorUsername }}</template>
               </span>
             </div>
@@ -501,6 +513,7 @@ const form = reactive({
   excerpt: '',
   content: '',
   published: true,
+  visibility: 'public',
 })
 
 function applyUser(nextUser) {
@@ -715,6 +728,12 @@ async function doRegister() {
   }
 }
 
+function visibilityLabel(visibility) {
+  if (visibility === 'friends') return t('admin.visibilityFriendsShort')
+  if (visibility === 'private') return t('admin.visibilityPrivateShort')
+  return t('admin.visibilityPublicShort')
+}
+
 function resetForm() {
   editingId.value = ''
   form.title = ''
@@ -722,6 +741,7 @@ function resetForm() {
   form.excerpt = ''
   form.content = ''
   form.published = true
+  form.visibility = 'public'
   formError.value = ''
   formOk.value = ''
   mdImportOk.value = ''
@@ -736,6 +756,7 @@ function editPost(post) {
   form.excerpt = post.excerpt
   form.content = post.content
   form.published = post.published
+  form.visibility = post.visibility || 'public'
   formOk.value = ''
   formError.value = ''
   studioTab.value = 'compose'
@@ -770,6 +791,7 @@ async function submitPost() {
       excerpt: form.excerpt,
       content: form.content,
       published: form.published,
+      visibility: form.visibility || 'public',
     }
     if (editingId.value) {
       await updatePost(editingId.value, payload)
@@ -980,6 +1002,30 @@ onMounted(restoreSession)
   justify-content: space-between;
   gap: 0.75rem;
   margin-top: 0.85rem;
+}
+
+.composer-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.vis-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.vis-field select {
+  min-width: 7.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 88%, #000);
+  color: var(--text);
 }
 
 .upload-note {

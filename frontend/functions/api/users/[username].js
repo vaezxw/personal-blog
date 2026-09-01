@@ -7,6 +7,7 @@ import {
 } from '../_lib/follows.js'
 import { enrichPosts } from '../_lib/stats.js'
 import { empty, json } from '../_lib/response.js'
+import { publishedVisibilitySql } from '../_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -29,35 +30,65 @@ export async function onRequest(context) {
   const counts = await getFollowCounts(env.DB, row.id)
   const following = viewer?.id ? await isFollowing(env.DB, viewer.id, row.id) : false
   const mutual = viewer?.id ? await isMutualFollow(env.DB, viewer.id, row.id) : false
+  const isSelf = viewer?.id === row.id
 
-  const postCountRow = await env.DB.prepare(
-    `SELECT COUNT(*) AS c FROM posts WHERE author_id = ? AND published = 1`,
-  )
-    .bind(row.id)
-    .first()
+  let posts = []
+  let postCount = 0
 
-  const { results } = await env.DB.prepare(
-    `SELECT p.*, u.username AS author_username, u.avatar_url AS author_avatar_url
-     FROM posts p
-     JOIN users u ON u.id = p.author_id
-     WHERE p.author_id = ? AND p.published = 1
-     ORDER BY p.created_at DESC
-     LIMIT 50`,
-  )
-    .bind(row.id)
-    .all()
+  if (isSelf) {
+    const postCountRow = await env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM posts WHERE author_id = ? AND published = 1`,
+    )
+      .bind(row.id)
+      .first()
+    postCount = Number(postCountRow?.c || 0)
 
-  const posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
-    userId: viewer?.id || null,
-  })
+    const { results } = await env.DB.prepare(
+      `SELECT p.*, u.username AS author_username, u.avatar_url AS author_avatar_url
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       WHERE p.author_id = ? AND p.published = 1
+       ORDER BY p.created_at DESC
+       LIMIT 50`,
+    )
+      .bind(row.id)
+      .all()
+    posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
+      userId: viewer.id,
+    })
+  } else {
+    const vis = publishedVisibilitySql(viewer?.id || null)
+    const countRow = await env.DB.prepare(
+      `SELECT COUNT(*) AS c
+       FROM posts p
+       WHERE p.author_id = ? AND ${vis.sql}`,
+    )
+      .bind(row.id, ...vis.binds)
+      .first()
+    postCount = Number(countRow?.c || 0)
+
+    const { results } = await env.DB.prepare(
+      `SELECT p.*, u.username AS author_username, u.avatar_url AS author_avatar_url
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       WHERE p.author_id = ? AND ${vis.sql}
+       ORDER BY p.created_at DESC
+       LIMIT 50`,
+    )
+      .bind(row.id, ...vis.binds)
+      .all()
+    posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
+      userId: viewer?.id || null,
+    })
+  }
 
   return json(200, {
     user: mapPublicUser(row, {
       ...counts,
       following,
       mutual,
-      isSelf: viewer?.id === row.id,
-      postCount: Number(postCountRow?.c || 0),
+      isSelf,
+      postCount,
     }),
     posts,
   })

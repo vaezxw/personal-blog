@@ -1,8 +1,9 @@
 import { newId } from '../../_lib/crypto.js'
 import { mapComment } from '../../_lib/comments.js'
 import { createNotification } from '../../_lib/notifications.js'
-import { requireUser } from '../../_lib/auth.js'
+import { optionalUser, requireUser } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
+import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -11,11 +12,17 @@ export async function onRequest(context) {
 
   const slug = decodeURIComponent(params.slug || '')
   const post = await env.DB.prepare(
-    'SELECT id, author_id FROM posts WHERE slug = ? AND published = 1',
+    'SELECT id, author_id, published, visibility FROM posts WHERE slug = ? AND published = 1',
   )
     .bind(slug)
     .first()
   if (!post) return json(404, { error: 'Post not found' })
+
+  const viewer = await optionalUser(context)
+  if (!(await canViewPost(env.DB, viewer, post))) {
+    if (!viewer) return json(401, { ...visibilityDeniedPayload(post), error: 'Login required' })
+    return json(403, visibilityDeniedPayload(post))
+  }
 
   if (request.method === 'GET') {
     const { results } = await env.DB.prepare(

@@ -2,6 +2,7 @@ import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
 import { newId } from './_lib/crypto.js'
 import { enrichPosts } from './_lib/stats.js'
 import { empty, json, readJson } from './_lib/response.js'
+import { normalizeVisibility, publishedVisibilitySql } from './_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env } = context
@@ -15,14 +16,17 @@ export async function onRequest(context) {
 
     if (!includeDrafts) {
       const user = await optionalUser(context)
+      const vis = publishedVisibilitySql(user?.id || null)
       const { results } = await env.DB.prepare(
         `SELECT p.*, u.username AS author_username,
          u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
-         WHERE p.published = 1
+         WHERE ${vis.sql}
          ORDER BY p.created_at DESC`,
-      ).all()
+      )
+        .bind(...vis.binds)
+        .all()
       const posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
         userId: user?.id || null,
       })
@@ -78,12 +82,13 @@ export async function onRequest(context) {
       const excerpt = String(body.excerpt || '').trim()
       const content = body.content || ''
       const published = body.published ? 1 : 0
+      const visibility = normalizeVisibility(body.visibility)
 
       await env.DB.prepare(
-        `INSERT INTO posts (id, title, slug, excerpt, content, published, author_id, created_at, updated_at, view_count, like_count, click_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
+        `INSERT INTO posts (id, title, slug, excerpt, content, published, visibility, author_id, created_at, updated_at, view_count, like_count, click_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
       )
-        .bind(id, title, slug, excerpt, content, published, user.id, now, now)
+        .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now)
         .run()
 
       const row = await env.DB.prepare(

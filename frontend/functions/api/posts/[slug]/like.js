@@ -2,6 +2,7 @@ import { mapPost, requireUser } from '../../_lib/auth.js'
 import { createNotification } from '../../_lib/notifications.js'
 import { enrichPosts } from '../../_lib/stats.js'
 import { empty, json } from '../../_lib/response.js'
+import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -15,12 +16,15 @@ export async function onRequest(context) {
 
   const slug = decodeURIComponent(params.slug || '')
   const post = await env.DB.prepare(
-    'SELECT id, author_id, published, like_count FROM posts WHERE slug = ?',
+    'SELECT id, author_id, published, visibility, like_count FROM posts WHERE slug = ?',
   )
     .bind(slug)
     .first()
 
   if (!post || !post.published) return json(404, { error: 'Post not found' })
+  if (!(await canViewPost(env.DB, user, post))) {
+    return json(403, visibilityDeniedPayload(post))
+  }
 
   const existing = await env.DB.prepare(
     'SELECT user_id FROM post_likes WHERE user_id = ? AND post_id = ?',

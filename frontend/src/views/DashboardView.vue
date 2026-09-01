@@ -36,33 +36,36 @@
         <p class="muted">{{ t('dash.heatLede') }}</p>
       </div>
       <div class="heat-scroll">
-        <div class="heat-board">
-          <div class="heat-dows" aria-hidden="true">
-            <span v-for="d in dowLabels" :key="d">{{ d }}</span>
-          </div>
-          <div class="heat-main">
-            <div class="heat-months" aria-hidden="true">
-              <span
-                v-for="m in heatmapMonths"
-                :key="m.key"
-                :style="{ gridColumn: `${m.start} / span ${m.span}` }"
-              >
-                {{ m.label }}
-              </span>
-            </div>
+        <div
+          class="heat-board"
+          :style="{ '--weeks': String(heatmapWeeks.length || 53) }"
+        >
+          <div class="heat-corner" aria-hidden="true"></div>
+          <div class="heat-months" aria-hidden="true">
             <div
-              class="heat-grid"
-              :style="{ gridTemplateColumns: `repeat(${heatmapWeeks.length}, 11px)` }"
+              v-for="(m, i) in heatmapMonths"
+              :key="`${m.key}-${i}`"
+              class="heat-month-slot"
+              :style="{ gridColumn: `span ${m.span}` }"
             >
-              <button
-                v-for="cell in flatHeatCells"
-                :key="cell.date"
-                type="button"
-                class="heat-cell"
-                :class="`lv-${cell.level}`"
-                :style="{ gridColumn: cell.week + 1, gridRow: cell.dow + 1 }"
-                :title="heatTip(cell)"
-              ></button>
+              <span v-if="m.show">{{ m.label }}</span>
+            </div>
+          </div>
+          <div class="heat-dows" aria-hidden="true">
+            <span v-for="(d, i) in dowLabels" :key="i">{{ d }}</span>
+          </div>
+          <div class="heat-weeks">
+            <div v-for="(week, wi) in heatmapWeeks" :key="`w-${wi}`" class="heat-week">
+              <template v-for="dow in 7" :key="`${wi}-${dow}`">
+                <button
+                  v-if="week[dow - 1]"
+                  type="button"
+                  class="heat-cell"
+                  :class="`lv-${week[dow - 1].level}`"
+                  :title="heatTip(week[dow - 1])"
+                ></button>
+                <span v-else class="heat-cell heat-empty" aria-hidden="true"></span>
+              </template>
             </div>
           </div>
         </div>
@@ -218,59 +221,60 @@ const dowLabels = computed(() =>
   isEn.value ? ['', 'Mon', '', 'Wed', '', 'Fri', ''] : ['', '一', '', '三', '', '五', ''],
 )
 
+const monthNames = computed(() =>
+  isEn.value
+    ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    : ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+)
+
+/** weeks[weekIndex][dow] = cell | null, always length 7 (Sun..Sat) */
 const heatmapWeeks = computed(() => {
   const cells = data.value?.series?.postHeatmap?.cells || []
   if (!cells.length) return []
+
   const weeks = []
-  let col = []
+  let current = Array(7).fill(null)
   for (const cell of cells) {
-    col.push(cell)
+    current[cell.dow] = cell
     if (cell.dow === 6) {
-      weeks.push(col)
-      col = []
+      weeks.push(current)
+      current = Array(7).fill(null)
     }
   }
-  if (col.length) weeks.push(col)
+  // trailing partial week (not ended on Saturday yet)
+  if (current.some(Boolean)) weeks.push(current)
   return weeks
 })
 
-const flatHeatCells = computed(() => {
-  const out = []
-  heatmapWeeks.value.forEach((week, weekIdx) => {
-    for (const cell of week) {
-      out.push({ ...cell, week: weekIdx })
-    }
-  })
-  return out
-})
-
+/** Month bands aligned to week columns; hide label when span is too narrow to avoid overlap. */
 const heatmapMonths = computed(() => {
   const weeks = heatmapWeeks.value
   if (!weeks.length) return []
-  const monthNames = isEn.value
-    ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    : ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-  const labels = []
-  let prev = ''
-  weeks.forEach((week, idx) => {
-    const first = week[0]?.date
-    if (!first) return
-    const key = first.slice(0, 7)
-    if (key === prev) return
-    prev = key
-    const monthIdx = Number(first.slice(5, 7)) - 1
-    labels.push({
-      key,
-      label: monthNames[monthIdx] || key,
-      start: idx + 1,
-      span: 1,
-    })
-  })
-  for (let i = 0; i < labels.length; i++) {
-    const next = labels[i + 1]
-    labels[i].span = Math.max(1, (next ? next.start : weeks.length + 1) - labels[i].start)
+
+  const bands = []
+  for (let i = 0; i < weeks.length; i++) {
+    const first = weeks[i].find(Boolean)
+    if (!first?.date) continue
+    const key = first.date.slice(0, 7)
+    const last = bands[bands.length - 1]
+    if (last && last.key === key) {
+      last.span += 1
+    } else {
+      const monthIdx = Number(key.slice(5, 7)) - 1
+      bands.push({
+        key,
+        label: monthNames.value[monthIdx] || key,
+        span: 1,
+        show: false,
+      })
+    }
   }
-  return labels
+
+  for (const band of bands) {
+    // Need ~2+ week columns for "8月"/"Sep" to not collide with the next label
+    band.show = band.span >= 2
+  }
+  return bands
 })
 
 function heatTip(cell) {
@@ -667,52 +671,85 @@ onBeforeUnmount(destroyCharts)
 .heat-scroll {
   overflow-x: auto;
   padding-bottom: 0.25rem;
+  width: 100%;
 }
 
 .heat-board {
+  --heat-gap: 3px;
+  --weeks: 53;
   display: grid;
-  grid-template-columns: 28px auto;
-  gap: 0.35rem 0.45rem;
-  min-width: max-content;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  grid-template-rows: 1rem auto;
+  gap: 0.35rem var(--heat-gap);
+  width: 100%;
+  min-width: 0;
 }
 
-.heat-dows {
-  display: grid;
-  grid-template-rows: repeat(7, 11px);
-  gap: 3px;
-  align-content: end;
-  padding-top: 1.15rem;
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 11px;
-}
-
-.heat-main {
-  display: grid;
-  gap: 0.35rem;
+.heat-corner {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .heat-months {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
-  grid-auto-flow: column;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  gap: var(--heat-gap);
+  min-width: 0;
+}
+
+.heat-month-slot {
+  min-width: 0;
+  overflow: hidden;
   height: 1rem;
+}
+
+.heat-month-slot span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
   font-size: 0.72rem;
   color: var(--muted);
+  line-height: 1rem;
 }
 
-.heat-months span {
-  white-space: nowrap;
-}
-
-.heat-grid {
+.heat-dows {
+  grid-column: 1;
+  grid-row: 2;
   display: grid;
-  grid-template-rows: repeat(7, 11px);
-  gap: 3px;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: var(--heat-gap);
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1;
+  align-items: center;
+  justify-items: start;
+}
+
+.heat-weeks {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  gap: var(--heat-gap);
+  min-width: 0;
+  width: 100%;
+}
+
+.heat-week {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: var(--heat-gap);
+  min-width: 0;
 }
 
 .heat-cell {
-  width: 11px;
-  height: 11px;
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
   border-radius: 2px;
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   background: color-mix(in srgb, var(--line) 35%, transparent);
@@ -721,9 +758,17 @@ onBeforeUnmount(destroyCharts)
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
+.heat-cell.heat-empty {
+  opacity: 0;
+  border-color: transparent;
+  background: transparent;
+  pointer-events: none;
+}
+
 button.heat-cell:hover {
-  transform: scale(1.25);
+  transform: scale(1.15);
   filter: brightness(1.15);
+  z-index: 1;
 }
 
 .heat-cell.lv-0 {
@@ -757,6 +802,10 @@ button.heat-cell:hover {
 
 .heat-legend .heat-cell {
   display: inline-block;
+  width: 11px;
+  height: 11px;
+  aspect-ratio: auto;
+  flex: 0 0 11px;
 }
 
 .heat-total {

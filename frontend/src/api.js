@@ -49,7 +49,10 @@ async function request(path, options = {}, retry = true) {
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`)
+    const err = new Error(data.error || `Request failed (${res.status})`)
+    err.status = res.status
+    err.code = data.code || ''
+    throw err
   }
   return data
 }

@@ -20,28 +20,30 @@ function fillDays(map, days) {
   return out
 }
 
-/** GitHub-style calendar heatmap cells for the last ~53 weeks. */
-function buildHeatmap(map, weeks = 53) {
-  const today = new Date()
-  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
-  const endDow = todayUtc.getUTCDay() // 0=Sun
-  const totalDays = weeks * 7 - (6 - endDow)
-  const start = new Date(todayUtc)
-  start.setUTCDate(start.getUTCDate() - (totalDays - 1))
+/** Calendar heatmap: full weeks Sun→Sat, ending on today. */
+function buildHeatmap(map, weekCount = 53) {
+  const now = new Date()
+  // Workers run in UTC; keep calendar days in UTC to match ISO timestamps
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+
+  // Sunday of the oldest week we show
+  const start = new Date(today)
+  start.setUTCDate(today.getUTCDate() - today.getUTCDay() - (weekCount - 1) * 7)
 
   const cells = []
   let max = 0
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(start)
-    d.setUTCDate(start.getUTCDate() + i)
-    const key = d.toISOString().slice(0, 10)
+  const cursor = new Date(start)
+
+  while (cursor.getTime() <= today.getTime()) {
+    const key = cursor.toISOString().slice(0, 10)
     const value = Number(map[key] || 0)
     if (value > max) max = value
     cells.push({
       date: key,
       value,
-      dow: d.getUTCDay(),
+      dow: cursor.getUTCDay(),
     })
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
 
   for (const cell of cells) {
@@ -53,7 +55,13 @@ function buildHeatmap(map, weeks = 53) {
     else cell.level = 4
   }
 
-  return { cells, weeks, max, start: cells[0]?.date || null, end: cells[cells.length - 1]?.date || null }
+  return {
+    cells,
+    weeks: weekCount,
+    max,
+    start: cells[0]?.date || null,
+    end: cells[cells.length - 1]?.date || null,
+  }
 }
 
 function fillMonths(map, months) {

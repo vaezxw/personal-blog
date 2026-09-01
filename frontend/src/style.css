@@ -878,3 +878,23 @@ h2 {
     white-space: normal;
   }
 }
+
+.vis-badge {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.vis-badge.private {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--line) 35%, transparent);
+  border-color: var(--line);
+}

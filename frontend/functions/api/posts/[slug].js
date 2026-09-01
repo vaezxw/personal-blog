@@ -1,6 +1,11 @@
 import { canManagePost, mapPost, optionalUser, requireUser, simpleMarkdown } from '../_lib/auth.js'
 import { enrichPosts } from '../_lib/stats.js'
 import { corsHeaders, empty, json, readJson } from '../_lib/response.js'
+import {
+  canViewPost,
+  normalizeVisibility,
+  visibilityDeniedPayload,
+} from '../_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -36,6 +41,9 @@ export async function onRequest(context) {
       if (!user || !canManagePost(user, row)) {
         return json(404, { error: 'Post not found' })
       }
+    } else if (!(await canViewPost(env.DB, user, row))) {
+      if (!user) return json(401, { ...visibilityDeniedPayload(row), error: 'Login required' })
+      return json(403, visibilityDeniedPayload(row))
     }
 
     const [post] = await enrichPosts(env.DB, [mapPost(row)], { userId: user?.id || null })
@@ -71,14 +79,18 @@ export async function onRequest(context) {
       const content = body.content !== undefined ? body.content : row.content
       const published =
         body.published !== undefined ? (body.published ? 1 : 0) : row.published
+      const visibility =
+        body.visibility !== undefined
+          ? normalizeVisibility(body.visibility, row.visibility || 'public')
+          : normalizeVisibility(row.visibility)
       const updatedAt = new Date().toISOString()
 
       await env.DB.prepare(
         `UPDATE posts
-         SET title = ?, slug = ?, excerpt = ?, content = ?, published = ?, updated_at = ?
+         SET title = ?, slug = ?, excerpt = ?, content = ?, published = ?, visibility = ?, updated_at = ?
          WHERE id = ?`,
       )
-        .bind(title, slug, excerpt, content, published, updatedAt, param)
+        .bind(title, slug, excerpt, content, published, visibility, updatedAt, param)
         .run()
 
       const updated = await env.DB.prepare(

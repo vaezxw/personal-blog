@@ -29,6 +29,8 @@
       <div class="post-body">
         <h2>
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }">{{ post.title }}</RouterLink>
+          <span v-if="post.visibility === 'friends'" class="vis-badge">{{ t('post.badgeFriends') }}</span>
+          <span v-else-if="post.visibility === 'private'" class="vis-badge private">{{ t('post.badgePrivate') }}</span>
         </h2>
         <p>{{ plainExcerpt(post.excerpt || post.content) }}</p>
         <p class="post-engage muted">

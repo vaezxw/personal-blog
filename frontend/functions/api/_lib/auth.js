@@ -33,6 +33,7 @@ export function mapPost(row) {
     excerpt: row.excerpt,
     content: row.content,
     published: Boolean(row.published),
+    visibility: row.visibility || 'public',
     authorId: row.author_id,
     authorUsername: row.author_username || undefined,
     authorAvatarUrl: row.author_avatar_url || null,

@@ -76,6 +76,8 @@
         <div class="post-body">
           <h3>
             <RouterLink :to="{ name: 'post', params: { slug: post.slug } }">{{ post.title }}</RouterLink>
+            <span v-if="post.visibility === 'friends'" class="vis-badge">{{ t('post.badgeFriends') }}</span>
+            <span v-else-if="post.visibility === 'private'" class="vis-badge private">{{ t('post.badgePrivate') }}</span>
           </h3>
           <p class="post-engage muted">
             <span>{{ t('home.views', { count: post.viewCount || 0 }) }}</span>

@@ -1,5 +1,6 @@
-import { mapPost } from '../../_lib/auth.js'
+import { mapPost, optionalUser } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
+import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -9,12 +10,18 @@ export async function onRequest(context) {
 
   const slug = decodeURIComponent(params.slug || '')
   const post = await env.DB.prepare(
-    'SELECT id, published FROM posts WHERE slug = ?',
+    'SELECT id, author_id, published, visibility FROM posts WHERE slug = ?',
   )
     .bind(slug)
     .first()
 
   if (!post || !post.published) return json(404, { error: 'Post not found' })
+
+  const viewer = await optionalUser(context)
+  if (!(await canViewPost(env.DB, viewer, post))) {
+    if (!viewer) return json(401, { ...visibilityDeniedPayload(post), error: 'Login required' })
+    return json(403, visibilityDeniedPayload(post))
+  }
 
   let countView = true
   try {
