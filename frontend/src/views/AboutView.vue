@@ -103,7 +103,6 @@
             <h3>{{ project.name }}</h3>
             <span class="period mono">{{ project.period }}</span>
           </header>
-          <p class="project-role muted">{{ project.role }}</p>
           <p class="project-summary">{{ project.summary }}</p>
           <ul class="project-bullets">
             <li v-for="(b, i) in project.bullets" :key="i">{{ b }}</li>
@@ -126,27 +125,6 @@
           </div>
         </article>
       </div>
-    </div>
-
-    <div class="experience-section panel geek-panel">
-      <h2><span class="mono prompt">#</span> experience.timeline</h2>
-      <ul class="timeline">
-        <li>
-          <span class="time mono">2026.04 — 至今</span>
-          <strong>博彦科技（上海）</strong> — 前端开发
-          <p class="muted">设备生命周期 · 营收 3.0 · 智慧工单 App · 三端合同 · SCADA</p>
-        </li>
-        <li>
-          <span class="time mono">2023.07 — 2026.03</span>
-          <strong>博彦科技广州（上海）</strong> — 前端开发
-          <p class="muted">网格化智慧运营平台（大屏 / PC / H5）</p>
-        </li>
-        <li>
-          <span class="time mono">2022.07 — 2023.06</span>
-          <strong>亚信科技</strong> — 前端开发
-          <p class="muted">政府 OA · 区块链可视化 · PDF 分片预览</p>
-        </li>
-      </ul>
     </div>
   </section>
 </template>
