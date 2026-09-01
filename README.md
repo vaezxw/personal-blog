@@ -49,10 +49,23 @@ npx vercel --prod
 
 当前已部署示例地址：
 
-- https://mohhen-blog.vercel.app
+- Cloudflare（国内一般可直连）：https://mohhen-blog.pages.dev
+- Vercel（国内常需代理）：https://mohhen-blog.vercel.app
 - https://frontend-tau-ten-irvfp6w6t4.vercel.app
 
-管理页 `/admin`，令牌默认可用 `dev-admin-token`（上线后请在 Vercel 环境变量改成 `ADMIN_TOKEN`）。
+管理页 `/admin`，令牌默认可用 `dev-admin-token`（上线后请在平台环境变量改成 `ADMIN_TOKEN`）。
+
+### 方案 A2：Cloudflare Pages（国内更易访问）
+
+`frontend/functions` 为 Cloudflare Pages Functions，与静态前端一起部署：
+
+```bash
+cd frontend
+npm run build
+npx wrangler pages deploy dist --project-name=mohhen-blog
+```
+
+生产地址：`https://mohhen-blog.pages.dev`
 
 ### 方案 B：前端 Vercel + 后端 Render（持久化）
 
