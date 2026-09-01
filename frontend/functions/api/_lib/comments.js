@@ -5,6 +5,7 @@ export function mapComment(row) {
     postId: row.post_id,
     userId: row.user_id,
     username: row.username,
+    avatarUrl: row.avatar_url || null,
     content: row.content,
     createdAt: row.created_at,
   }

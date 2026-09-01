@@ -1,5 +1,6 @@
 import { newId } from '../../_lib/crypto.js'
 import { mapComment } from '../../_lib/comments.js'
+import { createNotification } from '../../_lib/notifications.js'
 import { requireUser } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
 
@@ -9,12 +10,16 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return empty(204)
 
   const slug = decodeURIComponent(params.slug || '')
-  const post = await env.DB.prepare('SELECT id FROM posts WHERE slug = ? AND published = 1').bind(slug).first()
+  const post = await env.DB.prepare(
+    'SELECT id, author_id FROM posts WHERE slug = ? AND published = 1',
+  )
+    .bind(slug)
+    .first()
   if (!post) return json(404, { error: 'Post not found' })
 
   if (request.method === 'GET') {
     const { results } = await env.DB.prepare(
-      `SELECT c.*, u.username
+      `SELECT c.*, u.username, u.avatar_url
        FROM comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.post_id = ?
@@ -44,8 +49,16 @@ export async function onRequest(context) {
         .bind(id, post.id, auth.user.id, content, createdAt)
         .run()
 
+      await createNotification(env.DB, {
+        userId: post.author_id,
+        actorId: auth.user.id,
+        type: 'comment',
+        postId: post.id,
+        commentId: id,
+      })
+
       const row = await env.DB.prepare(
-        `SELECT c.*, u.username
+        `SELECT c.*, u.username, u.avatar_url
          FROM comments c
          JOIN users u ON u.id = c.user_id
          WHERE c.id = ?`,

@@ -12,7 +12,8 @@
       <h1>{{ profile.name }}</h1>
       <p class="role-line">
         <span class="mono prompt">&gt;</span>
-        {{ profile.title }} · {{ profile.location }} · {{ profile.years }} 年经验
+        {{ profile.title }} · {{ profile.location }} ·
+        {{ t('about.yearsExp', { years: profile.years }) }}
       </p>
       <p class="lede">{{ profile.tagline }}</p>
       <ul class="summary-list">
@@ -35,7 +36,7 @@
     <div class="stack-section panel geek-panel">
       <div class="section-head">
         <h2><span class="mono prompt">#</span> tech.stack</h2>
-        <p class="muted">点击节点高亮关联项目 · 再次点击或点「重置」取消 · 节点可跳转官方文档</p>
+        <p class="muted">{{ t('about.stackHint') }}</p>
       </div>
 
       <div class="filter-bar">
@@ -49,7 +50,9 @@
         >
           {{ label }}
         </button>
-        <button type="button" class="filter-btn ghost" @click="clearSelection">重置</button>
+        <button type="button" class="filter-btn ghost" @click="clearSelection">
+          {{ t('about.reset') }}
+        </button>
       </div>
 
       <div class="tech-grid" ref="techGridRef">
@@ -76,15 +79,17 @@
 
       <p v-if="selectedTech" class="relation-hint mono">
         <span class="prompt">↳</span>
-        {{ selectedTechName }} 关联 {{ linkedProjects.length }} 个项目
-        <button type="button" class="inline-link" @click="clearSelection">清除筛选</button>
+        {{ t('about.related', { tech: selectedTechName, count: linkedProjects.length }) }}
+        <button type="button" class="inline-link" @click="clearHighlight">
+          {{ t('about.clearFilter') }}
+        </button>
       </p>
     </div>
 
     <div class="projects-section">
       <div class="section-head">
         <h2><span class="mono prompt">#</span> projects.log</h2>
-        <p class="muted">点击项目卡片反向高亮技术栈</p>
+        <p class="muted">{{ t('about.projectsHint') }}</p>
       </div>
 
       <div class="project-grid">
@@ -119,9 +124,28 @@
               {{ techById[tid]?.name || tid }}
             </button>
           </div>
-          <div v-if="project.url || project.repo" class="project-links">
-            <a v-if="project.url" :href="project.url" target="_blank" rel="noopener" @click.stop>访问</a>
-            <a v-if="project.repo" :href="project.repo" target="_blank" rel="noopener" @click.stop>源码</a>
+          <div v-if="project.url || project.repo || project.plugin" class="project-links">
+            <a
+              v-if="project.plugin"
+              :href="project.plugin"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+            >{{ t('about.plugin') }}</a>
+            <a
+              v-if="project.url"
+              :href="project.url"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+            >{{ t('about.visit') }}</a>
+            <a
+              v-if="project.repo"
+              :href="project.repo"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+            >{{ t('about.source') }}</a>
           </div>
         </article>
       </div>
@@ -130,25 +154,30 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import {
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useLocale } from '../composables/useLocale.js'
+
+const {
+  t,
   profile,
-  techStack,
   projects,
   categoryLabels,
+  techStack,
   projectsForTech,
   techForProject,
-} from '../data/profile.js'
+} = useLocale()
 
 const selectedTech = ref('')
 const selectedProject = ref('')
 const activeCategory = ref('')
 
-const techById = Object.fromEntries(techStack.map((t) => [t.id, t]))
+const techById = computed(() =>
+  Object.fromEntries(techStack.value.map((item) => [item.id, item])),
+)
 
 const filteredTech = computed(() => {
-  if (!activeCategory.value) return techStack
-  return techStack.filter((t) => t.category === activeCategory.value)
+  if (!activeCategory.value) return techStack.value
+  return techStack.value.filter((item) => item.category === activeCategory.value)
 })
 
 const linkedProjects = computed(() =>
@@ -159,16 +188,16 @@ const linkedProjectIds = computed(() => new Set(linkedProjects.value.map((p) => 
 
 const linkedTechIds = computed(() => {
   if (!selectedProject.value) return new Set()
-  return new Set(techForProject(selectedProject.value).map((t) => t.id))
+  return new Set(techForProject(selectedProject.value).map((item) => item.id))
 })
 
 const selectedTechName = computed(
-  () => techById[selectedTech.value]?.name || selectedTech.value,
+  () => techById.value[selectedTech.value]?.name || selectedTech.value,
 )
 
 function selectTech(id, event) {
   if (event?.metaKey || event?.ctrlKey) {
-    window.open(techById[id]?.url, '_blank', 'noopener')
+    window.open(techById.value[id]?.url, '_blank', 'noopener')
     return
   }
   selectedProject.value = ''
@@ -190,6 +219,29 @@ function clearSelection() {
   activeCategory.value = ''
 }
 
+function clearHighlight() {
+  selectedTech.value = ''
+  selectedProject.value = ''
+}
+
+function onDocumentClick(event) {
+  if (!selectedTech.value && !selectedProject.value) return
+  const el = event.target
+  if (!(el instanceof Element)) return
+  if (
+    el.closest('.project-card') ||
+    el.closest('.tech-node') ||
+    el.closest('.filter-btn') ||
+    el.closest('.inline-link') ||
+    el.closest('.mini-tech') ||
+    el.closest('.lang-toggle') ||
+    el.closest('.theme-toggle')
+  ) {
+    return
+  }
+  clearHighlight()
+}
+
 function shouldDimTech(techId) {
   if (selectedProject.value) {
     return !linkedTechIds.value.has(techId)
@@ -209,6 +261,14 @@ function shouldDimProject(projectId) {
   }
   return false
 }
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <style scoped>
@@ -252,7 +312,7 @@ function shouldDimProject(projectId) {
 }
 
 .geek-panel {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(255, 255, 255, 0.92));
+  background: var(--panel-grad);
   border: 1px solid var(--line);
   border-radius: 0 0 14px 14px;
   box-shadow: var(--shadow);
@@ -279,7 +339,7 @@ function shouldDimProject(projectId) {
 .summary-list {
   margin: 0 0 1.25rem;
   padding-left: 1.1rem;
-  color: #1f2937;
+  color: var(--prose-ink);
 }
 
 .summary-list li + li {
@@ -297,7 +357,7 @@ function shouldDimProject(projectId) {
   padding: 0.65rem 0.75rem;
   border: 1px dashed var(--line);
   border-radius: 10px;
-  background: rgba(15, 118, 110, 0.04);
+  background: var(--stat-bg);
 }
 
 .stat-value {
@@ -324,7 +384,7 @@ function shouldDimProject(projectId) {
   border: 1px solid var(--line);
   text-decoration: none;
   font-size: 0.88rem;
-  background: #fff;
+  background: var(--chip-bg);
 }
 
 .chip-link:hover {
@@ -355,7 +415,7 @@ function shouldDimProject(projectId) {
 
 .filter-btn {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--chip-bg);
   border-radius: 999px;
   padding: 0.3rem 0.75rem;
   font-size: 0.82rem;
@@ -385,7 +445,7 @@ function shouldDimProject(projectId) {
   padding: 0.65rem 0.7rem;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--node-bg);
   text-decoration: none;
   color: inherit;
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
@@ -416,7 +476,7 @@ function shouldDimProject(projectId) {
 
 .tech-node.linked {
   border-color: var(--node-color, var(--accent));
-  background: color-mix(in srgb, var(--node-color, var(--accent)) 8%, #fff);
+  background: color-mix(in srgb, var(--node-color, var(--accent)) 8%, var(--mini-mix));
 }
 
 .tech-node.dim,
@@ -499,15 +559,10 @@ function shouldDimProject(projectId) {
   white-space: nowrap;
 }
 
-.project-role {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-}
-
 .project-summary {
   margin: 0 0 0.65rem;
   font-size: 0.92rem;
-  color: #374151;
+  color: var(--prose-ink);
 }
 
 .project-bullets {
@@ -530,7 +585,7 @@ function shouldDimProject(projectId) {
 
 .mini-tech {
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--node-color, #64748b) 10%, #fff);
+  background: color-mix(in srgb, var(--node-color, #64748b) 10%, var(--mini-mix));
   border-left: 3px solid var(--node-color, var(--accent));
   border-radius: 6px;
   padding: 0.15rem 0.45rem;
@@ -552,31 +607,6 @@ function shouldDimProject(projectId) {
   color: var(--accent);
   text-decoration: none;
   font-weight: 600;
-}
-
-.timeline {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.timeline li {
-  padding-left: 0.85rem;
-  border-left: 2px solid var(--accent);
-}
-
-.timeline .time {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-bottom: 0.2rem;
-}
-
-.timeline p {
-  margin: 0.35rem 0 0;
-  font-size: 0.9rem;
 }
 
 @media (max-width: 640px) {

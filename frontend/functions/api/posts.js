@@ -1,5 +1,6 @@
-import { mapPost, requireUser } from './_lib/auth.js'
+import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
 import { newId } from './_lib/crypto.js'
+import { enrichPosts } from './_lib/stats.js'
 import { empty, json, readJson } from './_lib/response.js'
 
 export async function onRequest(context) {
@@ -13,14 +14,19 @@ export async function onRequest(context) {
     const includeDrafts = url.searchParams.get('all') === '1'
 
     if (!includeDrafts) {
+      const user = await optionalUser(context)
       const { results } = await env.DB.prepare(
-        `SELECT p.*, u.username AS author_username
+        `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          WHERE p.published = 1
          ORDER BY p.created_at DESC`,
       ).all()
-      return json(200, (results || []).map(mapPost))
+      const posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
+        userId: user?.id || null,
+      })
+      return json(200, posts)
     }
 
     const auth = await requireUser(context)
@@ -30,14 +36,16 @@ export async function onRequest(context) {
     let stmt
     if (user.role === 'admin') {
       stmt = env.DB.prepare(
-        `SELECT p.*, u.username AS author_username
+        `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          ORDER BY p.created_at DESC`,
       )
     } else {
       stmt = env.DB.prepare(
-        `SELECT p.*, u.username AS author_username
+        `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          WHERE p.author_id = ?
@@ -45,7 +53,8 @@ export async function onRequest(context) {
       ).bind(user.id)
     }
     const { results } = await stmt.all()
-    return json(200, (results || []).map(mapPost))
+    const posts = await enrichPosts(env.DB, (results || []).map(mapPost), { userId: user.id })
+    return json(200, posts)
   }
 
   if (request.method === 'POST') {
@@ -71,14 +80,15 @@ export async function onRequest(context) {
       const published = body.published ? 1 : 0
 
       await env.DB.prepare(
-        `INSERT INTO posts (id, title, slug, excerpt, content, published, author_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO posts (id, title, slug, excerpt, content, published, author_id, created_at, updated_at, view_count, like_count, click_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
       )
         .bind(id, title, slug, excerpt, content, published, user.id, now, now)
         .run()
 
       const row = await env.DB.prepare(
-        `SELECT p.*, u.username AS author_username
+        `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          WHERE p.id = ?`,
@@ -86,7 +96,8 @@ export async function onRequest(context) {
         .bind(id)
         .first()
 
-      return json(201, mapPost(row))
+      const [mapped] = await enrichPosts(env.DB, [mapPost(row)], { userId: user.id })
+      return json(201, mapped)
     } catch (err) {
       return json(400, { error: err.message || 'Invalid JSON body' })
     }

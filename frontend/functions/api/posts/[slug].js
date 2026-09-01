@@ -1,4 +1,5 @@
-import { canManagePost, mapPost, requireUser, simpleMarkdown } from '../_lib/auth.js'
+import { canManagePost, mapPost, optionalUser, requireUser, simpleMarkdown } from '../_lib/auth.js'
+import { enrichPosts } from '../_lib/stats.js'
 import { corsHeaders, empty, json, readJson } from '../_lib/response.js'
 
 export async function onRequest(context) {
@@ -16,10 +17,13 @@ export async function onRequest(context) {
       const auth = await requireUser(context)
       if (auth.error) return auth.error
       user = auth.user
+    } else {
+      user = await optionalUser(context)
     }
 
     const row = await env.DB.prepare(
-      `SELECT p.*, u.username AS author_username
+      `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
        FROM posts p
        JOIN users u ON u.id = p.author_id
        WHERE p.slug = ?`,
@@ -34,7 +38,7 @@ export async function onRequest(context) {
       }
     }
 
-    const post = mapPost(row)
+    const [post] = await enrichPosts(env.DB, [mapPost(row)], { userId: user?.id || null })
     return json(200, {
       ...post,
       html: simpleMarkdown(post.content),
@@ -78,7 +82,8 @@ export async function onRequest(context) {
         .run()
 
       const updated = await env.DB.prepare(
-        `SELECT p.*, u.username AS author_username
+        `SELECT p.*, u.username AS author_username,
+         u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          WHERE p.id = ?`,
@@ -86,13 +91,17 @@ export async function onRequest(context) {
         .bind(param)
         .first()
 
-      return json(200, mapPost(updated))
+      const [mapped] = await enrichPosts(env.DB, [mapPost(updated)], { userId: user.id })
+      return json(200, mapped)
     } catch (err) {
       return json(400, { error: err.message || 'Invalid JSON body' })
     }
   }
 
   if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(param).run()
+    await env.DB.prepare('DELETE FROM notifications WHERE post_id = ?').bind(param).run()
+    await env.DB.prepare('DELETE FROM comments WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(param).run()
     return new Response(null, {
       status: 204,

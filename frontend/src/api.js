@@ -12,6 +12,9 @@ export function getStoredUser() {
 export function setStoredUser(user) {
   if (user) sessionStorage.setItem(USER_KEY, JSON.stringify(user))
   else sessionStorage.removeItem(USER_KEY)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('mohhen-auth-change', { detail: { user } }))
+  }
 }
 
 async function tryRefresh() {
@@ -119,6 +122,94 @@ export function createComment(slug, content) {
 
 export function deleteComment(id) {
   return request(`/api/comments/${id}`, { method: 'DELETE' })
+}
+
+export function recordPostView(slug, { countView = true } = {}) {
+  return request(`/api/posts/${encodeURIComponent(slug)}/view`, {
+    method: 'POST',
+    body: JSON.stringify({ countView }),
+  })
+}
+
+export function togglePostLike(slug) {
+  return request(`/api/posts/${encodeURIComponent(slug)}/like`, {
+    method: 'POST',
+  })
+}
+
+export function fetchNotifications() {
+  return request('/api/notifications')
+}
+
+export function fetchUnreadCount() {
+  return request('/api/notifications/unread-count')
+}
+
+export function markNotificationsRead(ids) {
+  return request('/api/notifications/read', {
+    method: 'POST',
+    body: JSON.stringify(ids ? { ids } : {}),
+  })
+}
+
+export function fetchMyStats() {
+  return request('/api/stats/me')
+}
+
+export function updateProfile(body) {
+  return request('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function uploadAvatar(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request('/api/auth/avatar', {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function fetchUserProfile(username) {
+  return request(`/api/users/${encodeURIComponent(username)}`)
+}
+
+export function toggleFollow(username) {
+  return request(`/api/users/${encodeURIComponent(username)}/follow`, {
+    method: 'POST',
+  })
+}
+
+export function fetchUserDashboard(username) {
+  return request(`/api/users/${encodeURIComponent(username)}/dashboard`)
+}
+
+export function fetchFollowers(username) {
+  return request(`/api/users/${encodeURIComponent(username)}/followers`)
+}
+
+export function fetchFollowing(username) {
+  return request(`/api/users/${encodeURIComponent(username)}/following`)
+}
+
+const VIEW_KEY = 'mohhen-post-views'
+
+/** 同一浏览器 24h 内同一文章只计一次阅读 */
+export function shouldCountUniqueView(slug) {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY)
+    const map = raw ? JSON.parse(raw) : {}
+    const prev = Number(map[slug] || 0)
+    const now = Date.now()
+    if (prev && now - prev < 24 * 60 * 60 * 1000) return false
+    map[slug] = now
+    localStorage.setItem(VIEW_KEY, JSON.stringify(map))
+    return true
+  } catch {
+    return true
+  }
 }
 
 export function uploadImage(file) {

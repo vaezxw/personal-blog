@@ -19,7 +19,7 @@ export async function onRequest(context) {
     }
 
     const user = await env.DB.prepare(
-      `SELECT id, email, username, password_hash, role, created_at
+      `SELECT id, email, username, password_hash, role, created_at, avatar_url
        FROM users
        WHERE email = ? OR username = ?`,
     )

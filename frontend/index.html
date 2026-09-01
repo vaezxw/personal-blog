@@ -10,6 +10,24 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/public-sans@5.2.5/index.min.css" />
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('mohhen-theme')
+          if (theme !== 'light' && theme !== 'dark') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          }
+          document.documentElement.dataset.theme = theme
+          document.documentElement.classList.toggle('dark', theme === 'dark')
+
+          var locale = localStorage.getItem('mohhen-locale')
+          if (locale !== 'zh' && locale !== 'en') {
+            locale = (navigator.language || '').toLowerCase().startsWith('en') ? 'en' : 'zh'
+          }
+          document.documentElement.lang = locale === 'en' ? 'en' : 'zh-CN'
+        } catch (e) {}
+      })()
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

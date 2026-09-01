@@ -37,7 +37,7 @@ export async function rotateRefreshToken(env, rawRefreshToken, request) {
   const tokenHash = await hashToken(rawRefreshToken)
   const row = await env.DB.prepare(
     `SELECT rt.id AS rt_id, rt.user_id, rt.expires_at,
-            u.id, u.email, u.username, u.role, u.created_at
+            u.id, u.email, u.username, u.role, u.created_at, u.avatar_url
      FROM refresh_tokens rt
      JOIN users u ON u.id = rt.user_id
      WHERE rt.token_hash = ?`,
@@ -59,6 +59,7 @@ export async function rotateRefreshToken(env, rawRefreshToken, request) {
     username: row.username,
     role: row.role,
     created_at: row.created_at,
+    avatar_url: row.avatar_url || null,
   }
   return createSession(env, user, request)
 }

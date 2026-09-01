@@ -96,6 +96,10 @@ export function requireAdmin(req, res) {
   return true
 }
 
+import { marked } from 'marked'
+
+marked.setOptions({ gfm: true, breaks: false })
+
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, '&amp;')
@@ -104,48 +108,12 @@ function escapeHtml(text) {
 }
 
 export function simpleMarkdown(md) {
-  const escaped = escapeHtml(md || '')
-  const withCode = escaped.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
-  const lines = withCode.split(/\n/)
-  const html = []
-  let inList = false
-
-  for (const line of lines) {
-    if (/^### /.test(line)) {
-      if (inList) {
-        html.push('</ul>')
-        inList = false
-      }
-      html.push(`<h3>${line.slice(4)}</h3>`)
-      continue
-    }
-    if (/^## /.test(line)) {
-      if (inList) {
-        html.push('</ul>')
-        inList = false
-      }
-      html.push(`<h2>${line.slice(3)}</h2>`)
-      continue
-    }
-    if (/^- /.test(line)) {
-      if (!inList) {
-        html.push('<ul>')
-        inList = true
-      }
-      html.push(`<li>${line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`)
-      continue
-    }
-    if (inList) {
-      html.push('</ul>')
-      inList = false
-    }
-    if (!line.trim()) continue
-    if (line.startsWith('<pre>')) {
-      html.push(line)
-      continue
-    }
-    html.push(`<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`)
-  }
-  if (inList) html.push('</ul>')
-  return html.join('\n')
+  const src = String(md || '')
+    .replace(/^\uFEFF/, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r\n?/g, '\n')
+  if (!src.trim()) return ''
+  return marked.parse(src, { async: false })
 }
+
+export { escapeHtml }
