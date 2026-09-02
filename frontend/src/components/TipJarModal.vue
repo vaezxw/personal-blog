@@ -37,6 +37,7 @@
             <button
               type="button"
               class="tip-thumb"
+              :class="`tip-thumb--${item.id}`"
               :aria-label="t('tip.preview', { name: item.label })"
               @click="openPreview(item)"
             >
@@ -63,8 +64,16 @@
       role="presentation"
       @click="closePreview"
     >
-      <div class="tip-preview-panel" role="dialog" aria-modal="true" @click.stop>
-        <img :src="preview.src" :alt="preview.label" />
+      <div
+        class="tip-preview-panel"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="preview.label"
+        @click.stop
+      >
+        <div class="tip-preview-frame" :class="`tip-preview-frame--${preview.id}`">
+          <img :src="preview.src" :alt="preview.label" />
+        </div>
         <div class="tip-preview-actions">
           <button type="button" class="btn" @click="download(preview)">
             {{ t('tip.download') }}
@@ -175,19 +184,23 @@ onUnmounted(() => {
   z-index: 90;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: max(0.75rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, #020617 58%, transparent);
   backdrop-filter: blur(4px);
+  box-sizing: border-box;
 }
 
 .tip-preview-overlay {
   z-index: 95;
-  background: color-mix(in srgb, #020617 78%, transparent);
+  background: color-mix(in srgb, #020617 82%, transparent);
 }
 
 .tip-dialog {
-  width: min(100%, 34rem);
-  max-height: min(90vh, 40rem);
+  width: min(100%, 36rem);
+  max-height: min(90vh, 42rem);
   overflow: auto;
   padding: 1.15rem 1.2rem 1.25rem;
   border-radius: 16px;
@@ -234,6 +247,7 @@ onUnmounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
   margin-top: 1rem;
+  align-items: stretch;
 }
 
 .tip-card {
@@ -243,39 +257,53 @@ onUnmounted(() => {
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   text-align: center;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
   align-items: center;
+  justify-items: center;
   gap: 0.55rem;
+  min-width: 0;
 }
 
 .tip-thumb {
   display: block;
   width: 100%;
+  max-width: 11.5rem;
+  aspect-ratio: 3 / 4;
   padding: 0;
   border: none;
-  background: transparent;
-  cursor: zoom-in;
   border-radius: 10px;
   overflow: hidden;
+  cursor: zoom-in;
+  background: #0f172a;
+}
+
+.tip-thumb--wechat {
+  background: #07c160;
+}
+
+.tip-thumb--alipay {
+  background: #1677ff;
 }
 
 .tip-thumb img {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
-  border-radius: 10px;
+  object-fit: contain;
+  object-position: center center;
   transition: transform 0.2s ease;
 }
 
 .tip-thumb:hover img {
-  transform: scale(1.02);
+  transform: scale(1.03);
 }
 
 .tip-card figcaption {
   font-weight: 600;
   color: var(--ink);
   font-size: 0.92rem;
+  line-height: 1.2;
 }
 
 .tip-download {
@@ -290,23 +318,50 @@ onUnmounted(() => {
 }
 
 .tip-preview-panel {
-  width: min(100%, 28rem);
+  width: min(100%, 26rem);
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.75rem;
+  min-height: 0;
 }
 
-.tip-preview-panel img {
+.tip-preview-frame {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-height: min(72vh, 36rem);
-  object-fit: contain;
+  max-height: calc(100dvh - 9.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 12px;
-  background: #fff;
+  overflow: hidden;
+  background: #0f172a;
   box-shadow: 0 18px 48px color-mix(in srgb, #000 40%, transparent);
 }
 
+.tip-preview-frame--wechat {
+  background: #07c160;
+}
+
+.tip-preview-frame--alipay {
+  background: #1677ff;
+}
+
+.tip-preview-frame img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 9.5rem);
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 .tip-preview-actions {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
@@ -314,6 +369,7 @@ onUnmounted(() => {
 }
 
 .tip-preview-hint {
+  flex-shrink: 0;
   margin: 0;
   font-size: 0.85rem;
   text-align: center;
@@ -322,15 +378,26 @@ onUnmounted(() => {
 @media (max-width: 520px) {
   .tip-grid {
     grid-template-columns: 1fr;
+    max-width: 16rem;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .tip-dialog {
     width: min(100%, 22rem);
   }
 
-  .tip-thumb img {
-    max-width: 220px;
-    margin: 0 auto;
+  .tip-thumb {
+    max-width: 14rem;
+  }
+
+  .tip-preview-panel {
+    width: min(100%, 22rem);
+  }
+
+  .tip-preview-frame,
+  .tip-preview-frame img {
+    max-height: calc(100dvh - 10.5rem);
   }
 }
 </style>
