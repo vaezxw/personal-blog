@@ -15,7 +15,13 @@ SMTP_PORT = "465"
 SMTP_FROM_NAME = "墨痕"
 # SMTP_USER / SMTP_PASS / EMAIL_CRON_SECRET：Pages 控制台 Encrypted，勿写入仓库
 
-# 在 Cloudflare 控制台启用 R2 并创建 mohhen-blog-media 后取消注释：
+# 图片上传依赖 R2（当前未启用会返回 "R2 storage not configured"）。
+# 开通后取消注释并重新部署：
+# 1. https://dash.cloudflare.com → R2 → Enable R2（同意条款）
+# 2. Create bucket，名称必须是：mohhen-blog-media
+# 3. 取消下面 3 行注释，提交部署
+# 4. Pages 项目 → Settings → Functions → R2 bucket bindings
+#    Variable name: MEDIA ， R2 bucket: mohhen-blog-media
 # [[r2_buckets]]
 # binding = "MEDIA"
 # bucket_name = "mohhen-blog-media"

@@ -19,7 +19,13 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return empty(204)
   if (request.method !== 'POST') return json(405, { error: 'Method not allowed' })
 
-  if (!env.MEDIA) return json(503, { error: 'R2 storage not configured' })
+  if (!env.MEDIA) {
+    return json(503, {
+      error: 'R2 storage not configured',
+      hint:
+        '请在 Cloudflare 控制台启用 R2，创建桶 mohhen-blog-media，并在 Pages 项目绑定 MEDIA；同时取消注释 frontend/wrangler.toml 中的 r2_buckets。',
+    })
+  }
 
   const auth = await requireUser(context)
   if (auth.error) return auth.error
