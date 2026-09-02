@@ -1,7 +1,7 @@
 import { hashPassword, newId } from '../_lib/crypto.js'
 import { publicUser } from '../_lib/auth.js'
 import { createSession } from '../_lib/session.js'
-import { isDeliverableEmail } from '../_lib/smtp.js'
+import { isDeliverableEmail } from '../_lib/email.js'
 import { empty, json, jsonWithSetCookies, readJson } from '../_lib/response.js'
 
 export async function onRequest(context) {

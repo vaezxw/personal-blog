@@ -4,6 +4,9 @@
  */
 
 import { connect } from 'cloudflare:sockets'
+import { isDeliverableEmail } from './email.js'
+
+export { isDeliverableEmail } from './email.js'
 
 function b64(text) {
   return btoa(unescape(encodeURIComponent(text)))
@@ -79,13 +82,6 @@ class SmtpSession {
       /* ignore */
     }
   }
-}
-
-export function isDeliverableEmail(email) {
-  const e = String(email || '').trim().toLowerCase()
-  if (!e) return false
-  if (e.endsWith('.invalid') || e.endsWith('@local') || e.includes('@noreply.')) return false
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
 }
 
 /**

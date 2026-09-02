@@ -21,9 +21,9 @@ export async function onRequest(context) {
     const user = await env.DB.prepare(
       `SELECT id, email, username, password_hash, role, created_at, avatar_url
        FROM users
-       WHERE email = ? OR username = ?`,
+       WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
     )
-      .bind(login.toLowerCase(), login)
+      .bind(login, login)
       .first()
 
     if (!user || !(await verifyPassword(password, user.password_hash))) {

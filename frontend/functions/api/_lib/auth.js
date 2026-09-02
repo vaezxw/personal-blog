@@ -1,7 +1,7 @@
 import { verifyJwt } from './crypto.js'
 import { getCookie, ACCESS_COOKIE } from './cookies.js'
 import { json } from './response.js'
-import { isDeliverableEmail } from './smtp.js'
+import { isDeliverableEmail } from './email.js'
 
 export function getJwtSecret(env) {
   return env?.JWT_SECRET || 'dev-jwt-secret-change-me'
