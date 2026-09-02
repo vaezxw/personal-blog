@@ -261,3 +261,10 @@ export function uploadImage(file) {
     body: form,
   })
 }
+
+export function translateText({ text, from = 'auto', to = 'en' }) {
+  return request('/api/translate', {
+    method: 'POST',
+    body: JSON.stringify({ text, from, to }),
+  })
+}

@@ -43,6 +43,7 @@ import HashTool from '../components/tools/HashTool.vue'
 import Base64TextTool from '../components/tools/Base64TextTool.vue'
 import UuidTool from '../components/tools/UuidTool.vue'
 import RegexTool from '../components/tools/RegexTool.vue'
+import TranslateTool from '../components/tools/TranslateTool.vue'
 import { useLocale } from '../composables/useLocale.js'
 
 const DocConvertTool = defineAsyncComponent(() => import('../components/tools/DocConvertTool.vue'))
@@ -56,6 +57,12 @@ const toolItems = computed(() => [
     title: t('tools.json.title'),
     desc: t('tools.json.desc'),
     component: JsonTool,
+  },
+  {
+    id: 'translate',
+    title: t('tools.translate.title'),
+    desc: t('tools.translate.desc'),
+    component: TranslateTool,
   },
   {
     id: 'base64',
