@@ -29,22 +29,25 @@
       </div>
     </div>
 
-    <div class="tool-grid">
-      <div class="tool-field">
-        <label>{{ t('tools.common.input') }}</label>
+    <div class="tool-grid tool-grid--equal">
+      <div class="tool-field tool-field--stack">
+        <div class="tool-field-head">
+          <label>{{ t('tools.common.input') }}</label>
+          <span class="muted tool-count">{{ t('tools.translate.limit', { count: input.length }) }}</span>
+        </div>
         <textarea
           v-model="input"
-          rows="12"
           :placeholder="t('tools.translate.placeholder')"
           maxlength="4500"
         ></textarea>
-        <p class="muted tool-note">{{ t('tools.translate.limit', { count: input.length }) }}</p>
       </div>
-      <div class="tool-field">
-        <label>{{ t('tools.common.output') }}</label>
+      <div class="tool-field tool-field--stack">
+        <div class="tool-field-head">
+          <label>{{ t('tools.common.output') }}</label>
+          <span class="muted tool-count" aria-hidden="true">&nbsp;</span>
+        </div>
         <textarea
           v-model="output"
-          rows="12"
           readonly
           :placeholder="t('tools.common.outputHint')"
         ></textarea>
@@ -123,3 +126,46 @@ async function copyOutput() {
   }
 }
 </script>
+
+<style scoped>
+.tool-pane .tool-grid.tool-grid--equal {
+  align-items: stretch;
+}
+
+.tool-pane .tool-field.tool-field--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tool-pane .tool-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.tool-pane .tool-field-head label {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.tool-pane .tool-count {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.tool-pane .tool-field.tool-field--stack textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 280px;
+  height: 280px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+</style>

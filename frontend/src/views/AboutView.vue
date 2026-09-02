@@ -151,23 +151,6 @@
       </div>
     </div>
 
-    <div class="tip-section panel geek-panel">
-      <div class="section-head">
-        <h2><span class="mono prompt">#</span> tip.jar</h2>
-        <p class="muted">{{ t('about.tipHint') }}</p>
-      </div>
-      <div class="tip-grid">
-        <figure class="tip-card">
-          <img src="/qr/wechat.png" :alt="t('about.tipWechat')" loading="lazy" />
-          <figcaption>{{ t('about.tipWechat') }}</figcaption>
-        </figure>
-        <figure class="tip-card">
-          <img src="/qr/alipay.png" :alt="t('about.tipAlipay')" loading="lazy" />
-          <figcaption>{{ t('about.tipAlipay') }}</figcaption>
-        </figure>
-      </div>
-      <p class="muted tip-thanks">{{ t('about.tipThanks') }}</p>
-    </div>
   </section>
 </template>
 
@@ -627,54 +610,11 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.tip-section {
-  margin-top: 1.25rem;
-}
-
-.tip-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 0.85rem;
-}
-
-.tip-card {
-  margin: 0;
-  padding: 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  text-align: center;
-}
-
-.tip-card img {
-  width: min(100%, 220px);
-  height: auto;
-  border-radius: 10px;
-  display: block;
-  margin: 0 auto;
-}
-
-.tip-card figcaption {
-  margin-top: 0.65rem;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.tip-thanks {
-  margin: 0.95rem 0 0;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
 @media (max-width: 640px) {
   .filter-btn.ghost {
     margin-left: 0;
   }
   .project-grid {
-    grid-template-columns: 1fr;
-  }
-  .tip-grid {
     grid-template-columns: 1fr;
   }
 }

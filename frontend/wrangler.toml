@@ -12,6 +12,9 @@ preview_database_id = "DB"
 binding = "MEDIA"
 bucket_name = "mohhen-blog-media"
 
+[ai]
+binding = "AI"
+
 [vars]
 SITE_ORIGIN = "https://mohhen-blog.pages.dev"
 SMTP_HOST = "smtp.qq.com"

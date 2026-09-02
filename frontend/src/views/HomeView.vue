@@ -3,6 +3,12 @@
     <p class="eyebrow">{{ t('home.eyebrow') }}</p>
     <h1>{{ t('home.title') }}</h1>
     <p class="lede">{{ t('home.lede') }}</p>
+    <div class="hero-actions">
+      <button type="button" class="btn ghost tip-trigger" @click="tipOpen = true">
+        {{ t('tip.open') }}
+      </button>
+    </div>
+    <TipJarModal v-model:open="tipOpen" />
   </section>
 
   <section class="post-list" aria-live="polite">
@@ -49,6 +55,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { fetchPosts } from '../api'
+import TipJarModal from '../components/TipJarModal.vue'
 import { useLocale } from '../composables/useLocale.js'
 import { toPlainExcerpt } from '../utils/markdownUpload.js'
 
@@ -56,6 +63,7 @@ const { t, formatDate } = useLocale()
 const posts = ref([])
 const loading = ref(true)
 const error = ref('')
+const tipOpen = ref(false)
 
 function plainExcerpt(text) {
   return toPlainExcerpt(text, 120)
@@ -73,6 +81,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.hero-actions {
+  margin-top: 1.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.tip-trigger {
+  padding: 0.55rem 1rem;
+  font-size: 0.92rem;
+}
+
 .post-engage {
   margin: 0.45rem 0 0;
   font-size: 0.85rem;
