@@ -17,6 +17,8 @@
   --node-bg: #ffffff;
   --mini-mix: #ffffff;
   --stat-bg: rgba(15, 118, 110, 0.04);
+  --toc-bg: rgba(255, 255, 255, 0.62);
+  --toc-bg-solid: rgba(255, 255, 255, 0.88);
   --body-glow-1: rgba(15, 118, 110, 0.14);
   --body-glow-2: rgba(37, 99, 235, 0.1);
   --body-base-1: #f7f9fc;
@@ -52,6 +54,8 @@ html.dark {
   --node-bg: rgba(17, 24, 39, 0.9);
   --mini-mix: #0f172a;
   --stat-bg: rgba(45, 212, 191, 0.08);
+  --toc-bg: rgba(15, 23, 42, 0.72);
+  --toc-bg-solid: rgba(15, 23, 42, 0.9);
   --body-glow-1: rgba(45, 212, 191, 0.12);
   --body-glow-2: rgba(59, 130, 246, 0.12);
   --body-base-1: #0b1220;
@@ -221,7 +225,7 @@ textarea:focus-visible {
 }
 
 .shell:has(.article-with-toc.toc-open) {
-  width: min(1180px, calc(100% - 2rem));
+  width: min(1320px, calc(100% - 2rem));
 }
 
 .site-header {

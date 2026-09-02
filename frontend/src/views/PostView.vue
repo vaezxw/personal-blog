@@ -1,6 +1,12 @@
 <template>
   <article class="article article-with-toc" v-if="post" :class="{ 'toc-open': tocOpen && tocTree.length }">
-    <div class="article-layout" :class="{ 'has-toc': tocOpen && tocTree.length }">
+    <div
+      class="article-layout"
+      :class="{
+        'has-toc': tocTree.length,
+        'toc-expanded': tocOpen && tocTree.length,
+      }"
+    >
       <div class="article-main">
     <header class="post-header">
       <RouterLink
@@ -255,34 +261,38 @@
     <RouterLink class="back" to="/">{{ t('post.back') }}</RouterLink>
       </div>
 
-      <aside v-if="tocTree.length && tocOpen" class="article-toc-rail open">
+      <aside
+        v-if="tocTree.length"
+        class="article-toc-rail"
+        :class="{ open: tocOpen }"
+      >
         <PostToc
+          v-if="tocOpen"
           :tree="tocTree"
           :content-root="proseEl"
           @hide="setTocOpen(false)"
         />
+        <button
+          v-else
+          type="button"
+          class="toc-reopen-edge"
+          :aria-label="t('post.tocShow')"
+          :title="t('post.tocShow')"
+          @click="setTocOpen(true)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              d="M5 7h14M5 12h10M5 17h12"
+            />
+          </svg>
+          <span>{{ t('post.toc') }}</span>
+        </button>
       </aside>
     </div>
-
-    <button
-      v-if="tocTree.length && !tocOpen"
-      type="button"
-      class="toc-reopen-edge"
-      :aria-label="t('post.tocShow')"
-      :title="t('post.tocShow')"
-      @click="setTocOpen(true)"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.7"
-          stroke-linecap="round"
-          d="M5 7h14M5 12h10M5 17h12"
-        />
-      </svg>
-      <span>{{ t('post.toc') }}</span>
-    </button>
 
     <div
       v-if="tocTree.length && tocOpen"
@@ -1124,15 +1134,21 @@ watch(
   justify-self: start;
 }
 
+
 .article-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.75rem;
+  gap: 1.25rem;
   align-items: start;
 }
 
 .article-layout.has-toc {
-  grid-template-columns: minmax(0, 1fr) 15.25rem;
+  grid-template-columns: minmax(0, 1fr) 2.85rem;
+}
+
+.article-layout.toc-expanded {
+  grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 20.5rem);
+  gap: 1.75rem;
 }
 
 .article-main {
@@ -1144,6 +1160,7 @@ watch(
   top: 1.1rem;
   align-self: start;
   z-index: 20;
+  max-height: calc(100vh - 2rem);
 }
 
 .article-toc-rail :deep(.post-toc) {
@@ -1151,12 +1168,13 @@ watch(
   flex-direction: column;
   gap: 0.55rem;
   max-height: calc(100vh - 2rem);
-  padding: 0.85rem 0.75rem 0.95rem;
-  border: 1px solid var(--line);
+  padding: 0.9rem 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   border-radius: 14px;
-  background: var(--surface);
+  background: var(--toc-bg, var(--surface));
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
 }
 
 .article-toc-rail :deep(.post-toc-head) {
@@ -1165,13 +1183,14 @@ watch(
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0 0.15rem 0.45rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 
 .article-toc-rail :deep(.post-toc-head strong) {
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   letter-spacing: 0.02em;
+  color: var(--ink);
 }
 
 .article-toc-rail :deep(.post-toc-icon-btn),
@@ -1180,11 +1199,13 @@ watch(
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  border: 1px solid var(--line);
-  background: var(--chip-bg);
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  background: var(--toc-bg, var(--surface));
   color: var(--ink);
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .article-toc-rail :deep(.post-toc-icon-btn) {
@@ -1192,6 +1213,7 @@ watch(
   height: 1.85rem;
   border-radius: 8px;
   padding: 0;
+  background: color-mix(in srgb, var(--toc-bg, var(--surface)) 70%, transparent);
 }
 
 .article-toc-rail :deep(.post-toc-icon-btn svg),
@@ -1210,7 +1232,15 @@ watch(
 .article-toc-rail :deep(.post-toc-nav) {
   overflow: auto;
   overscroll-behavior: contain;
-  padding-right: 0.15rem;
+  padding-right: 0.1rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.article-toc-rail :deep(.post-toc-nav::-webkit-scrollbar) {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .article-toc-rail :deep(.post-toc-list) {
@@ -1222,7 +1252,7 @@ watch(
 .article-toc-rail :deep(.post-toc-row) {
   display: grid;
   grid-template-columns: 1.1rem 1fr;
-  gap: 0.15rem;
+  gap: 0.2rem;
   align-items: start;
 }
 
@@ -1258,15 +1288,15 @@ watch(
   border: 0;
   background: transparent;
   text-align: left;
-  padding: 0.28rem 0.4rem;
+  padding: 0.3rem 0.45rem;
   border-radius: 8px;
   color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.35;
+  font-size: 0.84rem;
+  line-height: 1.4;
   cursor: pointer;
   width: 100%;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   transition: color 0.15s ease, background 0.15s ease;
@@ -1284,27 +1314,21 @@ watch(
 }
 
 .toc-reopen-edge {
-  position: fixed;
-  top: 50%;
-  right: 0;
-  z-index: 70;
-  transform: translateY(-50%);
+  width: 100%;
+  min-height: 7.5rem;
   flex-direction: column;
-  padding: 0.85rem 0.55rem 0.85rem 0.65rem;
-  border-radius: 12px 0 0 12px;
-  border-right: 0;
+  padding: 0.75rem 0.35rem;
+  border-radius: 12px;
   font-size: 0.78rem;
   font-weight: 600;
   gap: 0.45rem;
   box-shadow: var(--shadow);
-  background: var(--surface);
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
   letter-spacing: 0.08em;
 }
 
 .toc-reopen-edge span {
   writing-mode: vertical-rl;
+  text-orientation: mixed;
 }
 
 .toc-backdrop {
@@ -1312,19 +1336,26 @@ watch(
 }
 
 @media (max-width: 980px) {
-  .article-layout.has-toc {
+  .article-layout.has-toc,
+  .article-layout.toc-expanded {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .article-toc-rail {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(18.5rem, 86vw);
+    top: auto;
+    right: 1rem;
+    bottom: 1.25rem;
+    left: auto;
     z-index: 80;
+    max-height: none;
+    width: auto;
+  }
+
+  .article-toc-rail.open {
+    inset: 0 0 0 auto;
+    width: min(20.5rem, 88vw);
     padding: 1rem 0.85rem;
-    background: transparent;
   }
 
   .article-toc-rail :deep(.post-toc) {
@@ -1333,20 +1364,17 @@ watch(
   }
 
   .toc-reopen-edge {
-    top: auto;
-    bottom: 1.25rem;
-    right: 1rem;
-    transform: none;
+    min-height: 0;
+    width: auto;
     flex-direction: row;
-    writing-mode: horizontal-tb;
-    letter-spacing: 0;
     padding: 0.65rem 0.95rem;
     border-radius: 999px;
-    border-right: 1px solid var(--line);
+    letter-spacing: 0;
   }
 
   .toc-reopen-edge span {
     writing-mode: horizontal-tb;
+    text-orientation: mixed;
   }
 
   .article.toc-open .toc-backdrop {
@@ -1357,4 +1385,5 @@ watch(
     background: rgba(15, 23, 42, 0.35);
   }
 }
+
 </style>

@@ -171,3 +171,16 @@ watch(
 onMounted(() => requestAnimationFrame(setupObserver))
 onUnmounted(disconnectObserver)
 </script>
+
+<style scoped>
+.post-toc-nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.post-toc-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+</style>
