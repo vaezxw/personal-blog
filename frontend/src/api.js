@@ -204,6 +204,26 @@ export function fetchFollowing(username) {
   return request(`/api/users/${encodeURIComponent(username)}/following`)
 }
 
+export function fetchConversations() {
+  return request('/api/messages')
+}
+
+export function fetchMessageUnreadCount() {
+  return request('/api/messages/unread-count')
+}
+
+export function fetchThread(username, after) {
+  const q = after ? `?after=${encodeURIComponent(after)}` : ''
+  return request(`/api/messages/${encodeURIComponent(username)}${q}`)
+}
+
+export function sendMessage(username, body) {
+  return request(`/api/messages/${encodeURIComponent(username)}`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  })
+}
+
 const VIEW_KEY = 'mohhen-post-views'
 
 /** 同一浏览器 24h 内同一文章只计一次阅读 */

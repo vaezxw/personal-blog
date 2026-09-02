@@ -20,6 +20,17 @@ const router = createRouter({
     },
     { path: '/about', name: 'about', component: AboutView },
     { path: '/tools', name: 'tools', component: () => import('../views/ToolsView.vue') },
+    {
+      path: '/messages',
+      name: 'messages',
+      component: () => import('../views/MessagesView.vue'),
+    },
+    {
+      path: '/messages/:username',
+      name: 'messages-user',
+      component: () => import('../views/MessagesView.vue'),
+      props: true,
+    },
     { path: '/admin', name: 'admin', component: AdminView },
     { path: '/search', redirect: '/' },
   ],

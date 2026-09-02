@@ -28,6 +28,21 @@
         >
           {{ followLabel }}
         </button>
+        <RouterLink
+          v-if="!profile.isSelf && currentUser"
+          class="btn ghost"
+          :to="{ name: 'messages-user', params: { username: profile.username } }"
+        >
+          {{ t('user.message') }}
+        </RouterLink>
+        <button
+          v-else-if="!profile.isSelf && !currentUser"
+          type="button"
+          class="btn ghost"
+          @click="followHint = true"
+        >
+          {{ t('user.message') }}
+        </button>
         <RouterLink v-else class="btn ghost" to="/admin">{{ t('user.manage') }}</RouterLink>
         <RouterLink
           class="btn ghost"
@@ -155,6 +170,7 @@ const listError = ref('')
 const followBusy = ref(false)
 const followHint = ref(false)
 const rowBusy = ref('')
+const currentUser = ref(getStoredUser())
 
 const avatarLetter = computed(() => (profile.value?.username || '?').slice(0, 1).toUpperCase())
 const roleLabel = computed(() =>
@@ -172,6 +188,7 @@ async function load() {
   tab.value = 'posts'
   people.value = []
   followHint.value = false
+  currentUser.value = getStoredUser()
   try {
     const data = await fetchUserProfile(props.username)
     profile.value = data.user

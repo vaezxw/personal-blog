@@ -285,6 +285,12 @@ textarea:focus-visible {
   border-radius: 999px;
   box-shadow: var(--shadow);
   padding: 0;
+  text-decoration: none;
+}
+
+a.notify-bell.router-link-active {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .notify-bell:hover {

@@ -7,10 +7,30 @@
           <RouterLink to="/">{{ t('nav.posts') }}</RouterLink>
           <RouterLink to="/about">{{ t('nav.about') }}</RouterLink>
           <RouterLink to="/tools">{{ t('nav.tools') }}</RouterLink>
+          <RouterLink v-if="currentUser" to="/messages">{{ t('nav.messages') }}</RouterLink>
           <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">
           <SiteSearch />
+          <RouterLink
+            v-if="currentUser"
+            class="notify-bell dm-bell"
+            to="/messages"
+            :aria-label="t('dm.open')"
+            :title="t('dm.open')"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-3 2.2V12A8.5 8.5 0 1 1 21 12z"
+              />
+            </svg>
+            <span v-if="dmUnreadCount > 0" class="notify-badge">{{ dmUnreadLabel }}</span>
+          </RouterLink>
           <div v-if="currentUser" class="notify-wrap" ref="notifyWrapRef">
             <button
               type="button"
@@ -128,6 +148,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SiteSearch from './components/SiteSearch.vue'
 import {
+  fetchMessageUnreadCount,
   fetchNotifications,
   fetchUnreadCount,
   getStoredUser,
@@ -145,6 +166,7 @@ const themeLabel = computed(() => (isDark.value ? t('theme.toDay') : t('theme.to
 
 const currentUser = ref(getStoredUser())
 const unreadCount = ref(0)
+const dmUnreadCount = ref(0)
 const notifications = ref([])
 const notifyOpen = ref(false)
 const notifyLoading = ref(false)
@@ -152,10 +174,12 @@ const notifyWrapRef = ref(null)
 let pollTimer = null
 
 const unreadLabel = computed(() => (unreadCount.value > 99 ? '99+' : String(unreadCount.value)))
+const dmUnreadLabel = computed(() => (dmUnreadCount.value > 99 ? '99+' : String(dmUnreadCount.value)))
 
 function notifyText(n) {
   if (n.type === 'follow') return t('notify.follow', { user: n.actorUsername || 'user' })
   if (n.type === 'reply') return t('notify.reply', { user: n.actorUsername || 'user' })
+  if (n.type === 'message') return t('notify.message', { user: n.actorUsername || 'user' })
   const key = n.type === 'like' ? 'notify.like' : 'notify.comment'
   return t(key, { user: n.actorUsername || 'user', title: n.postTitle || '' })
 }
@@ -164,6 +188,10 @@ function notifyHref(n) {
   if (n?.type === 'follow') {
     const user = n.actorUsername
     return user ? `/u/${encodeURIComponent(user)}` : '#'
+  }
+  if (n?.type === 'message') {
+    const user = n.actorUsername
+    return user ? `/messages/${encodeURIComponent(user)}` : '/messages'
   }
   const slug = n?.postSlug
   if (!slug) return '#'
@@ -188,6 +216,7 @@ async function refreshUser() {
     currentUser.value = null
     setStoredUser(null)
     unreadCount.value = 0
+    dmUnreadCount.value = 0
     notifications.value = []
   }
 }
@@ -195,11 +224,16 @@ async function refreshUser() {
 async function refreshUnread() {
   if (!currentUser.value) {
     unreadCount.value = 0
+    dmUnreadCount.value = 0
     return
   }
   try {
-    const data = await fetchUnreadCount()
-    unreadCount.value = Number(data.count || 0)
+    const [notifyData, dmData] = await Promise.all([
+      fetchUnreadCount(),
+      fetchMessageUnreadCount(),
+    ])
+    unreadCount.value = Number(notifyData.count || 0)
+    dmUnreadCount.value = Number(dmData.count || 0)
   } catch {
     /* ignore */
   }
@@ -249,12 +283,14 @@ onMounted(async () => {
   await refreshUnread()
   document.addEventListener('pointerdown', onDocPointerDown)
   window.addEventListener('mohhen-auth-change', onAuthChange)
+  window.addEventListener('mohhen-dm-change', refreshUnread)
   pollTimer = setInterval(refreshUnread, 60000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocPointerDown)
   window.removeEventListener('mohhen-auth-change', onAuthChange)
+  window.removeEventListener('mohhen-dm-change', refreshUnread)
   if (pollTimer) clearInterval(pollTimer)
 })
 
