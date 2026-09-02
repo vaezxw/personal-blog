@@ -1143,7 +1143,7 @@ watch(
 }
 
 .article-layout.has-toc {
-  grid-template-columns: minmax(0, 1fr) 2.85rem;
+  grid-template-columns: minmax(0, 1fr) 3.25rem;
 }
 
 .article-layout.toc-expanded {
@@ -1314,21 +1314,24 @@ watch(
 }
 
 .toc-reopen-edge {
-  width: 100%;
-  min-height: 7.5rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  min-height: 0;
   flex-direction: column;
-  padding: 0.75rem 0.35rem;
+  padding: 0.35rem 0.25rem;
   border-radius: 12px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  gap: 0.45rem;
+  gap: 0.18rem;
   box-shadow: var(--shadow);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
 }
 
 .toc-reopen-edge span {
-  writing-mode: vertical-rl;
+  writing-mode: horizontal-tb;
   text-orientation: mixed;
+  white-space: nowrap;
 }
 
 .toc-backdrop {
