@@ -226,6 +226,9 @@ function notifyText(n) {
   if (n.type === 'follow') return t('notify.follow', { user: n.actorUsername || 'user' })
   if (n.type === 'reply') return t('notify.reply', { user: n.actorUsername || 'user' })
   if (n.type === 'message') return t('notify.message', { user: n.actorUsername || 'user' })
+  if (n.type === 'post') {
+    return t('notify.post', { user: n.actorUsername || 'user', title: n.postTitle || '' })
+  }
   const key = n.type === 'like' ? 'notify.like' : 'notify.comment'
   return t(key, { user: n.actorUsername || 'user', title: n.postTitle || '' })
 }
@@ -241,6 +244,7 @@ function notifyHref(n) {
   }
   const slug = n?.postSlug
   if (!slug) return '#'
+  if (n?.type === 'post') return `/post/${encodeURIComponent(slug)}`
   const hash =
     n?.type === 'like' ? '#likes' : n?.commentId ? `#comment-${n.commentId}` : '#comments'
   return `/post/${encodeURIComponent(slug)}${hash}`

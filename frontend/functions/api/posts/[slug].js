@@ -1,4 +1,5 @@
 import { canManagePost, mapPost, optionalUser, requireUser, simpleMarkdown } from '../_lib/auth.js'
+import { notifyFollowersOfNewPost } from '../_lib/postFollowNotify.js'
 import { enrichPosts } from '../_lib/stats.js'
 import { corsHeaders, empty, json, readJson } from '../_lib/response.js'
 import {
@@ -85,6 +86,9 @@ export async function onRequest(context) {
           : normalizeVisibility(row.visibility)
       const updatedAt = new Date().toISOString()
 
+      const wasPublished = Number(row.published) === 1
+      const wasVisibility = normalizeVisibility(row.visibility)
+
       await env.DB.prepare(
         `UPDATE posts
          SET title = ?, slug = ?, excerpt = ?, content = ?, published = ?, visibility = ?, updated_at = ?
@@ -92,6 +96,19 @@ export async function onRequest(context) {
       )
         .bind(title, slug, excerpt, content, published, visibility, updatedAt, param)
         .run()
+
+      // First publish, or private → visible: notify followers once (idempotent)
+      const becameVisible =
+        published === 1 &&
+        (!wasPublished || (wasVisibility === 'private' && visibility !== 'private'))
+      if (becameVisible) {
+        await notifyFollowersOfNewPost(env.DB, {
+          id: param,
+          author_id: row.author_id,
+          published,
+          visibility,
+        })
+      }
 
       const updated = await env.DB.prepare(
         `SELECT p.*, u.username AS author_username,
@@ -113,6 +130,7 @@ export async function onRequest(context) {
   if (request.method === 'DELETE') {
     await env.DB.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM post_favorites WHERE post_id = ?').bind(param).run()
+    await env.DB.prepare('DELETE FROM post_follow_emails WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM notifications WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM comments WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(param).run()

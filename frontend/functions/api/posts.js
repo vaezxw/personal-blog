@@ -1,5 +1,6 @@
 import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
 import { newId } from './_lib/crypto.js'
+import { notifyFollowersOfNewPost } from './_lib/postFollowNotify.js'
 import { enrichPosts } from './_lib/stats.js'
 import { empty, json, readJson } from './_lib/response.js'
 import { normalizeVisibility, publishedVisibilitySql } from './_lib/visibility.js'
@@ -90,6 +91,15 @@ export async function onRequest(context) {
       )
         .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now)
         .run()
+
+      if (published) {
+        await notifyFollowersOfNewPost(env.DB, {
+          id,
+          author_id: user.id,
+          published,
+          visibility,
+        })
+      }
 
       const row = await env.DB.prepare(
         `SELECT p.*, u.username AS author_username,

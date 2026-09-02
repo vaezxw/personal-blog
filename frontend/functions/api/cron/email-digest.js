@@ -1,4 +1,4 @@
-import { runUnreadMessageEmailDigest } from '../_lib/emailDigest.js'
+import { runAllEmailDigests } from '../_lib/emailDigest.js'
 import { empty, json } from '../_lib/response.js'
 
 function authorized(request, env) {
@@ -23,7 +23,7 @@ export async function onRequest(context) {
   }
 
   try {
-    const result = await runUnreadMessageEmailDigest(env)
+    const result = await runAllEmailDigests(env)
     return json(result.ok ? 200 : 500, result)
   } catch (err) {
     return json(500, { ok: false, error: String(err?.message || err) })

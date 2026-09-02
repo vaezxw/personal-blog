@@ -55,6 +55,7 @@ export const messages = {
       reply: '{user} 回复了你的评论',
       follow: '{user} 关注了你',
       message: '{user} 给你发来私信',
+      post: '{user} 发布了新文章《{title}》',
       open: '打开通知',
     },
     dm: {
@@ -526,6 +527,7 @@ export const messages = {
       reply: '{user} replied to your comment',
       follow: '{user} followed you',
       message: '{user} sent you a message',
+      post: '{user} published “{title}”',
       open: 'Open notifications',
     },
     dm: {
