@@ -1167,6 +1167,7 @@ watch(
 
 .article-main {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .article-toc-rail {
@@ -1359,7 +1360,7 @@ watch(
 }
 
 @media (max-width: 980px) {
-  /* 手机端单列正文，大纲改为悬浮层，不再占栅格宽度 */
+  /* 手机端单列正文；大纲完全隐藏 */
   .article-layout,
   .article-layout.has-toc {
     display: block;
@@ -1370,11 +1371,13 @@ watch(
   .article-main {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
   }
 
   .post-header h1 {
     font-size: clamp(1.7rem, 7.5vw, 2.2rem);
     line-height: 1.2;
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 
@@ -1384,65 +1387,11 @@ watch(
 
   .article-toc-rail,
   .article-toc-rail:not(.open),
-  .article-toc-rail.open {
-    position: fixed;
-    z-index: 80;
-    width: auto;
-    max-height: none;
-    align-self: auto;
-    display: block;
-    justify-content: initial;
-  }
-
-  .article-toc-rail:not(.open) {
-    top: auto;
-    left: auto;
-    right: max(0.75rem, env(safe-area-inset-right, 0px));
-    bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
-    padding: 0;
-    inset: auto;
-  }
-
-  .article-toc-rail.open {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: auto;
-    width: min(20rem, 88vw);
-    padding: 0.85rem 0.75rem;
-    padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
-  }
-
-  .article-toc-rail :deep(.post-toc) {
-    height: 100%;
-    max-height: none;
-  }
-
-  .toc-reopen-edge {
-    width: auto;
-    height: auto;
-    min-height: 0;
-    flex-direction: row;
-    padding: 0.7rem 1rem;
-    border-radius: 999px;
-    letter-spacing: 0;
-    font-size: 0.88rem;
-    gap: 0.4rem;
-    box-shadow: var(--shadow);
-  }
-
-  .toc-reopen-edge span {
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-    white-space: nowrap;
-  }
-
+  .article-toc-rail.open,
+  .toc-reopen-edge,
+  .toc-backdrop,
   .article.toc-open .toc-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 75;
-    background: rgba(15, 23, 42, 0.45);
+    display: none !important;
   }
 }
 </style>

@@ -13,6 +13,9 @@ export const messages = {
       admin: '创作台',
     },
     footer: '墨痕 · 个人博客',
+    common: {
+      backTop: '回到顶部',
+    },
     theme: {
       day: '昼',
       night: '夜',
@@ -490,6 +493,9 @@ export const messages = {
       admin: 'Studio',
     },
     footer: 'Mohhen · Personal blog',
+    common: {
+      backTop: 'Back to top',
+    },
     theme: {
       day: 'Day',
       night: 'Night',

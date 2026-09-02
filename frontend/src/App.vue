@@ -182,12 +182,14 @@
     <footer class="site-footer">
       <p>{{ t('footer') }}</p>
     </footer>
+    <BackToTop />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import BackToTop from './components/BackToTop.vue'
 import SiteSearch from './components/SiteSearch.vue'
 import {
   fetchMessageUnreadCount,
