@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@wangeditor/editor": "^5.1.23",
+    "@wangeditor/editor-for-vue": "^5.1.12",
     "chart.js": "^4.5.1",
     "marked": "^18.0.11",
     "vue": "^3.5.42",

@@ -231,14 +231,44 @@
             <label>{{ t('admin.fieldExcerpt') }}</label>
             <input v-model="form.excerpt" :placeholder="t('admin.excerptPlaceholder')" />
           </div>
-          <div class="field full">
-            <label>{{ t('admin.fieldContent') }}</label>
+          <div
+            class="field full content-field"
+            @dragover.prevent
+            @drop.prevent="onMarkdownDrop"
+          >
+            <div class="content-head">
+              <label>{{ t('admin.fieldContent') }}</label>
+              <div class="content-mode" role="tablist" :aria-label="t('admin.editorMode')">
+                <button
+                  type="button"
+                  role="tab"
+                  :class="{ active: contentMode === 'rich' }"
+                  :aria-selected="contentMode === 'rich'"
+                  @click="switchContentMode('rich')"
+                >
+                  {{ t('admin.editorRich') }}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  :class="{ active: contentMode === 'markdown' }"
+                  :aria-selected="contentMode === 'markdown'"
+                  @click="switchContentMode('markdown')"
+                >
+                  {{ t('admin.editorMarkdown') }}
+                </button>
+              </div>
+            </div>
+            <RichTextEditor
+              v-if="contentMode === 'rich'"
+              v-model="form.content"
+              :placeholder="t('admin.contentPlaceholder')"
+            />
             <textarea
+              v-else
               v-model="form.content"
               rows="14"
-              :placeholder="t('admin.contentPlaceholder')"
-              @dragover.prevent
-              @drop.prevent="onMarkdownDrop"
+              :placeholder="t('admin.markdownPlaceholder')"
             ></textarea>
           </div>
         </div>
@@ -452,7 +482,9 @@ import {
   uploadAvatar,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import RichTextEditor from '../components/RichTextEditor.vue'
 import { compressImageFile } from '../utils/avatar.js'
+import { isHtmlContent, markdownToHtml } from '../utils/contentFormat.js'
 import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.js'
 
 const { t } = useLocale()
@@ -471,6 +503,7 @@ const saving = ref(false)
 const formError = ref('')
 const formOk = ref('')
 const editingId = ref('')
+const contentMode = ref('rich')
 const mdInputRef = ref(null)
 const mdImportOk = ref('')
 const mdImportError = ref('')
@@ -567,6 +600,21 @@ function readFileAsText(file) {
   })
 }
 
+function contentForEditor(raw) {
+  const text = String(raw || '')
+  if (!text.trim()) return ''
+  if (isHtmlContent(text)) return text
+  return markdownToHtml(text)
+}
+
+function switchContentMode(mode) {
+  if (mode === contentMode.value) return
+  if (mode === 'rich' && !isHtmlContent(form.content)) {
+    form.content = markdownToHtml(form.content)
+  }
+  contentMode.value = mode
+}
+
 async function importMarkdownFile(file) {
   mdImportOk.value = ''
   mdImportError.value = ''
@@ -581,7 +629,8 @@ async function importMarkdownFile(file) {
   try {
     const raw = await readFileAsText(file)
     const parsed = parseMarkdownDocument(raw, file.name)
-    form.content = parsed.content
+    form.content =
+      contentMode.value === 'rich' ? markdownToHtml(parsed.content) : parsed.content
     if (!form.title.trim() && parsed.title) form.title = parsed.title
     if (!form.slug.trim() && parsed.slug) form.slug = parsed.slug
     if (!form.excerpt.trim() && parsed.excerpt) form.excerpt = parsed.excerpt
@@ -736,6 +785,7 @@ function visibilityLabel(visibility) {
 
 function resetForm() {
   editingId.value = ''
+  contentMode.value = 'rich'
   form.title = ''
   form.slug = ''
   form.excerpt = ''
@@ -751,10 +801,12 @@ function resetForm() {
 
 function editPost(post) {
   editingId.value = post.id
+  contentMode.value = isHtmlContent(post.content) ? 'rich' : 'markdown'
   form.title = post.title
   form.slug = post.slug
   form.excerpt = post.excerpt
-  form.content = post.content
+  form.content =
+    contentMode.value === 'rich' ? contentForEditor(post.content) : post.content
   form.published = post.published
   form.visibility = post.visibility || 'public'
   formOk.value = ''
@@ -993,6 +1045,44 @@ onMounted(restoreSession)
 
 .composer-grid .field.full {
   grid-column: 1 / -1;
+}
+
+.content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.content-mode {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, #000);
+}
+
+.content-mode button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.content-mode button.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.content-field textarea {
+  min-height: 360px;
+  resize: vertical;
 }
 
 .composer-foot {

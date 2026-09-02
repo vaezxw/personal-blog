@@ -14,6 +14,13 @@ function normalizeMarkdown(md) {
     .replace(/\r\n?/g, '\n')
 }
 
+/** 判断正文是否为 HTML（wangEditor 等） */
+function isHtmlContent(content) {
+  const text = String(content || '').trim()
+  if (!text) return false
+  return /<\/?[a-z][\s\S]*>/i.test(text)
+}
+
 /** 用 marked（GFM）渲染：标题、表格、链接、列表、代码块等 */
 export function renderMarkdown(md) {
   const src = normalizeMarkdown(md)
@@ -21,9 +28,17 @@ export function renderMarkdown(md) {
   return marked.parse(src, { async: false })
 }
 
+/** 文章展示：自动识别 Markdown / HTML */
+export function renderPostContent(content) {
+  const text = String(content || '')
+  if (!text.trim()) return ''
+  if (isHtmlContent(text)) return text
+  return renderMarkdown(text)
+}
+
 /** @deprecated 兼容旧 import 名 */
 export function simpleMarkdown(md) {
-  return renderMarkdown(md)
+  return renderPostContent(md)
 }
 
 export function escapeHtml(value) {

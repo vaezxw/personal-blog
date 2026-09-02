@@ -187,7 +187,7 @@ import {
   togglePostLike,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
-import { renderMarkdown } from '../utils/renderMarkdown.js'
+import { renderPostContent } from '../utils/contentFormat.js'
 import {
   canUseNativeShare,
   copyText,
@@ -298,7 +298,7 @@ function flashShare(msg, ok = true) {
 
 const renderedHtml = computed(() => {
   if (!post.value) return ''
-  return renderMarkdown(post.value.content || '')
+  return renderPostContent(post.value.content || '')
 })
 
 const authorLetter = computed(() =>
