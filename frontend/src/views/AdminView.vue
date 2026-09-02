@@ -98,25 +98,61 @@
           >
             <div class="content-head">
               <label>{{ t('admin.fieldContent') }}</label>
-              <div class="content-mode" role="tablist" :aria-label="t('admin.editorMode')">
-                <button
-                  type="button"
-                  role="tab"
-                  :class="{ active: contentMode === 'rich' }"
-                  :aria-selected="contentMode === 'rich'"
-                  @click="switchContentMode('rich')"
+              <div class="content-tools">
+                <div class="content-mode" role="tablist" :aria-label="t('admin.editorMode')">
+                  <button
+                    type="button"
+                    role="tab"
+                    :class="{ active: contentMode === 'rich' }"
+                    :aria-selected="contentMode === 'rich'"
+                    @click="switchContentMode('rich')"
+                  >
+                    {{ t('admin.editorRich') }}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :class="{ active: contentMode === 'markdown' }"
+                    :aria-selected="contentMode === 'markdown'"
+                    @click="switchContentMode('markdown')"
+                  >
+                    {{ t('admin.editorMarkdown') }}
+                  </button>
+                </div>
+                <div
+                  v-if="contentMode === 'markdown'"
+                  class="content-mode preview-mode"
+                  role="tablist"
+                  :aria-label="t('admin.previewMode')"
                 >
-                  {{ t('admin.editorRich') }}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  :class="{ active: contentMode === 'markdown' }"
-                  :aria-selected="contentMode === 'markdown'"
-                  @click="switchContentMode('markdown')"
-                >
-                  {{ t('admin.editorMarkdown') }}
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :class="{ active: mdPane === 'edit' }"
+                    :aria-selected="mdPane === 'edit'"
+                    @click="mdPane = 'edit'"
+                  >
+                    {{ t('admin.previewEdit') }}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :class="{ active: mdPane === 'split' }"
+                    :aria-selected="mdPane === 'split'"
+                    @click="mdPane = 'split'"
+                  >
+                    {{ t('admin.previewSplit') }}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    :class="{ active: mdPane === 'preview' }"
+                    :aria-selected="mdPane === 'preview'"
+                    @click="mdPane = 'preview'"
+                  >
+                    {{ t('admin.previewOnly') }}
+                  </button>
+                </div>
               </div>
             </div>
             <RichTextEditor
@@ -124,12 +160,31 @@
               v-model="form.content"
               :placeholder="t('admin.contentPlaceholder')"
             />
-            <textarea
+            <div
               v-else
-              v-model="form.content"
-              rows="14"
-              :placeholder="t('admin.markdownPlaceholder')"
-            ></textarea>
+              class="md-workspace"
+              :class="{
+                'is-edit': mdPane === 'edit',
+                'is-split': mdPane === 'split',
+                'is-preview': mdPane === 'preview',
+              }"
+            >
+              <textarea
+                v-show="mdPane !== 'preview'"
+                v-model="form.content"
+                rows="14"
+                :placeholder="t('admin.markdownPlaceholder')"
+              ></textarea>
+              <div v-show="mdPane !== 'edit'" class="md-preview panel">
+                <p class="md-preview-label muted">{{ t('admin.previewLabel') }}</p>
+                <header v-if="form.title.trim() || form.excerpt.trim()" class="md-preview-head">
+                  <h3 v-if="form.title.trim()">{{ form.title }}</h3>
+                  <p v-if="form.excerpt.trim()" class="muted">{{ form.excerpt }}</p>
+                </header>
+                <div v-if="previewHtml" class="prose" v-html="previewHtml"></div>
+                <p v-else class="muted md-preview-empty">{{ t('admin.previewEmpty') }}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -329,7 +384,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
   createPost,
   deletePost,
@@ -346,7 +401,7 @@ import {
 import { useLocale } from '../composables/useLocale.js'
 import RichTextEditor from '../components/RichTextEditor.vue'
 import { compressImageFile } from '../utils/avatar.js'
-import { isHtmlContent, markdownToHtml } from '../utils/contentFormat.js'
+import { isHtmlContent, markdownToHtml, renderPostContent } from '../utils/contentFormat.js'
 import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.js'
 
 const { t } = useLocale()
@@ -361,6 +416,8 @@ const formError = ref('')
 const formOk = ref('')
 const editingId = ref('')
 const contentMode = ref('rich')
+/** Markdown 工作区：edit | split | preview */
+const mdPane = ref('edit')
 const mdInputRef = ref(null)
 const mdImportOk = ref('')
 const mdImportError = ref('')
@@ -398,6 +455,11 @@ const form = reactive({
   content: '',
   published: true,
   visibility: 'public',
+})
+
+const previewHtml = computed(() => {
+  if (contentMode.value !== 'markdown') return ''
+  return renderPostContent(form.content)
 })
 
 function applyUser(nextUser) {
@@ -458,6 +520,7 @@ function switchContentMode(mode) {
     form.content = markdownToHtml(form.content)
   }
   contentMode.value = mode
+  if (mode === 'markdown') mdPane.value = 'edit'
 }
 
 async function importMarkdownFile(file) {
@@ -474,8 +537,10 @@ async function importMarkdownFile(file) {
   try {
     const raw = await readFileAsText(file)
     const parsed = parseMarkdownDocument(raw, file.name)
-    form.content =
-      contentMode.value === 'rich' ? markdownToHtml(parsed.content) : parsed.content
+    // 上传 Markdown 后进入 Markdown 模式并打开预览
+    contentMode.value = 'markdown'
+    form.content = parsed.content
+    mdPane.value = 'split'
     if (!form.title.trim() && parsed.title) form.title = parsed.title
     if (!form.slug.trim() && parsed.slug) form.slug = parsed.slug
     if (!form.excerpt.trim() && parsed.excerpt) form.excerpt = parsed.excerpt
@@ -594,6 +659,7 @@ function visibilityLabel(visibility) {
 function resetForm() {
   editingId.value = ''
   contentMode.value = 'rich'
+  mdPane.value = 'edit'
   form.title = ''
   form.slug = ''
   form.excerpt = ''
@@ -610,6 +676,7 @@ function resetForm() {
 function editPost(post) {
   editingId.value = post.id
   contentMode.value = isHtmlContent(post.content) ? 'rich' : 'markdown'
+  mdPane.value = contentMode.value === 'markdown' ? 'split' : 'edit'
   form.title = post.title
   form.slug = post.slug
   form.excerpt = post.excerpt
@@ -872,10 +939,18 @@ onMounted(restoreSession)
 
 .content-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+.content-tools {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .content-mode {
@@ -903,9 +978,79 @@ onMounted(restoreSession)
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+.md-workspace {
+  display: grid;
+  gap: 0.65rem;
+  min-height: 360px;
+}
+
+.md-workspace.is-split {
+  grid-template-columns: 1fr 1fr;
+}
+
+.md-workspace textarea {
+  min-height: 360px;
+  resize: vertical;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.md-workspace textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.md-preview {
+  min-height: 360px;
+  max-height: min(70vh, 720px);
+  overflow: auto;
+  padding: 0.85rem 1rem 1rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 3%);
+}
+
+.md-preview-label {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.md-preview-head {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.md-preview-head h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.md-preview-head p {
+  margin: 0;
+}
+
+.md-preview-empty {
+  margin: 2rem 0;
+  text-align: center;
+}
+
 .content-field textarea {
   min-height: 360px;
   resize: vertical;
+}
+
+@media (max-width: 860px) {
+  .md-workspace.is-split {
+    grid-template-columns: 1fr;
+  }
 }
 
 .composer-foot {
