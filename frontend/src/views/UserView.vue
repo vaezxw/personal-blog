@@ -18,47 +18,72 @@
       </div>
 
       <div class="user-actions">
-        <button
-          v-if="!profile.isSelf"
-          type="button"
-          class="btn"
-          :class="{ ghost: profile.following }"
-          :disabled="followBusy"
-          @click="onFollow"
-        >
-          {{ followLabel }}
-        </button>
-        <RouterLink
-          v-if="!profile.isSelf && currentUser"
-          class="btn ghost"
-          :to="{ name: 'messages-user', params: { username: profile.username } }"
-        >
-          {{ t('user.message') }}
-        </RouterLink>
-        <button
-          v-else-if="!profile.isSelf && !currentUser"
-          type="button"
-          class="btn ghost"
-          @click="followHint = true"
-        >
-          {{ t('user.message') }}
-        </button>
-        <RouterLink v-else class="btn ghost" to="/admin">{{ t('user.manage') }}</RouterLink>
-        <RouterLink
-          class="btn ghost"
-          :to="{ name: 'user-dashboard', params: { username: profile.username } }"
-        >
-          {{ t('dash.open') }}
-        </RouterLink>
-        <RouterLink
-          class="btn ghost"
-          :to="{ name: 'user-library', params: { username: profile.username } }"
-        >
-          {{ t('library.open') }}
-        </RouterLink>
-        <p v-if="followHint" class="muted follow-hint">
-          <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('user.loginToFollow') }}
-        </p>
+        <template v-if="profile.isSelf">
+          <nav class="me-hub" :aria-label="t('nav.me')">
+            <RouterLink class="me-hub-card" to="/messages">
+              <strong>{{ t('nav.messages') }}</strong>
+              <span class="muted">{{ t('user.hubMessages') }}</span>
+            </RouterLink>
+            <RouterLink
+              class="me-hub-card"
+              :to="{ name: 'user-library', params: { username: profile.username } }"
+            >
+              <strong>{{ t('nav.library') }}</strong>
+              <span class="muted">{{ t('user.hubLibrary') }}</span>
+            </RouterLink>
+            <RouterLink
+              class="me-hub-card"
+              :to="{ name: 'user-dashboard', params: { username: profile.username } }"
+            >
+              <strong>{{ t('dash.open') }}</strong>
+              <span class="muted">{{ t('user.hubDash') }}</span>
+            </RouterLink>
+            <RouterLink class="me-hub-card" to="/admin">
+              <strong>{{ t('user.manage') }}</strong>
+              <span class="muted">{{ t('user.hubStudio') }}</span>
+            </RouterLink>
+          </nav>
+        </template>
+        <template v-else>
+          <div class="user-action-row">
+            <button
+              type="button"
+              class="btn"
+              :class="{ ghost: profile.following }"
+              :disabled="followBusy"
+              @click="onFollow"
+            >
+              {{ followLabel }}
+            </button>
+            <RouterLink
+              v-if="currentUser"
+              class="btn ghost"
+              :to="{ name: 'messages-user', params: { username: profile.username } }"
+            >
+              {{ t('user.message') }}
+            </RouterLink>
+            <button
+              v-else
+              type="button"
+              class="btn ghost"
+              @click="followHint = true"
+            >
+              {{ t('user.message') }}
+            </button>
+          </div>
+          <div class="user-secondary-links">
+            <RouterLink :to="{ name: 'user-dashboard', params: { username: profile.username } }">
+              {{ t('dash.open') }}
+            </RouterLink>
+            <span aria-hidden="true">·</span>
+            <RouterLink :to="{ name: 'user-library', params: { username: profile.username } }">
+              {{ t('library.open') }}
+            </RouterLink>
+          </div>
+          <p v-if="followHint" class="muted follow-hint">
+            <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('user.loginToFollow') }}
+          </p>
+        </template>
       </div>
 
       <div class="user-stats">
@@ -341,15 +366,75 @@ watch(
 }
 
 .user-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.user-action-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.55rem;
+}
+
+.user-secondary-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.user-secondary-links a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.user-secondary-links a:hover {
+  color: var(--accent);
+}
+
+.me-hub {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.me-hub-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.me-hub-card:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.me-hub-card strong {
+  font-size: 0.95rem;
+}
+
+.me-hub-card .muted {
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .follow-hint {
   margin: 0;
   font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .me-hub {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .user-stats {

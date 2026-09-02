@@ -7,36 +7,10 @@
           <RouterLink to="/">{{ t('nav.posts') }}</RouterLink>
           <RouterLink to="/about">{{ t('nav.about') }}</RouterLink>
           <RouterLink to="/tools">{{ t('nav.tools') }}</RouterLink>
-          <RouterLink v-if="currentUser" to="/messages">{{ t('nav.messages') }}</RouterLink>
-          <RouterLink
-            v-if="currentUser"
-            :to="{ name: 'user-library', params: { username: currentUser.username } }"
-          >
-            {{ t('nav.library') }}
-          </RouterLink>
           <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">
           <SiteSearch />
-          <RouterLink
-            v-if="currentUser"
-            class="notify-bell dm-bell"
-            to="/messages"
-            :aria-label="t('dm.open')"
-            :title="t('dm.open')"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-3 2.2V12A8.5 8.5 0 1 1 21 12z"
-              />
-            </svg>
-            <span v-if="dmUnreadCount > 0" class="notify-badge">{{ dmUnreadLabel }}</span>
-          </RouterLink>
           <div v-if="currentUser" class="notify-wrap" ref="notifyWrapRef">
             <button
               type="button"
@@ -92,6 +66,55 @@
               </ul>
             </div>
           </div>
+
+          <div v-if="currentUser" class="me-wrap" ref="meWrapRef">
+            <button
+              type="button"
+              class="me-trigger"
+              :aria-label="t('nav.me')"
+              :title="t('nav.me')"
+              :aria-expanded="meOpen"
+              @click="toggleMe"
+            >
+              <span class="me-avatar" aria-hidden="true">
+                <img v-if="currentUser.avatarUrl" :src="currentUser.avatarUrl" alt="" />
+                <template v-else>{{ meLetter }}</template>
+              </span>
+              <span v-if="dmUnreadCount > 0" class="notify-badge">{{ dmUnreadLabel }}</span>
+            </button>
+            <div v-if="meOpen" class="me-panel geek-surface">
+              <p class="me-panel-name">@{{ currentUser.username }}</p>
+              <RouterLink
+                class="me-item"
+                :to="{ name: 'user', params: { username: currentUser.username } }"
+                @click="meOpen = false"
+              >
+                {{ t('nav.myProfile') }}
+              </RouterLink>
+              <RouterLink class="me-item" to="/messages" @click="meOpen = false">
+                <span>{{ t('nav.messages') }}</span>
+                <span v-if="dmUnreadCount > 0" class="me-item-badge mono">{{ dmUnreadLabel }}</span>
+              </RouterLink>
+              <RouterLink
+                class="me-item"
+                :to="{ name: 'user-library', params: { username: currentUser.username } }"
+                @click="meOpen = false"
+              >
+                {{ t('nav.library') }}
+              </RouterLink>
+              <RouterLink
+                class="me-item"
+                :to="{ name: 'user-dashboard', params: { username: currentUser.username } }"
+                @click="meOpen = false"
+              >
+                {{ t('dash.open') }}
+              </RouterLink>
+              <RouterLink class="me-item me-item-studio" to="/admin" @click="meOpen = false">
+                {{ t('nav.admin') }}
+              </RouterLink>
+            </div>
+          </div>
+
           <button
             type="button"
             class="lang-toggle"
@@ -177,10 +200,13 @@ const notifications = ref([])
 const notifyOpen = ref(false)
 const notifyLoading = ref(false)
 const notifyWrapRef = ref(null)
+const meOpen = ref(false)
+const meWrapRef = ref(null)
 let pollTimer = null
 
 const unreadLabel = computed(() => (unreadCount.value > 99 ? '99+' : String(unreadCount.value)))
 const dmUnreadLabel = computed(() => (dmUnreadCount.value > 99 ? '99+' : String(dmUnreadCount.value)))
+const meLetter = computed(() => (currentUser.value?.username || '?').slice(0, 1).toUpperCase())
 
 function notifyText(n) {
   if (n.type === 'follow') return t('notify.follow', { user: n.actorUsername || 'user' })
@@ -259,8 +285,14 @@ async function loadNotifications() {
 }
 
 async function toggleNotify() {
+  meOpen.value = false
   notifyOpen.value = !notifyOpen.value
   if (notifyOpen.value) await loadNotifications()
+}
+
+function toggleMe() {
+  notifyOpen.value = false
+  meOpen.value = !meOpen.value
 }
 
 async function markAllRead() {
@@ -277,11 +309,14 @@ async function markAllRead() {
 }
 
 function onDocPointerDown(event) {
-  if (!notifyOpen.value) return
   const el = event.target
   if (!(el instanceof Element)) return
-  if (notifyWrapRef.value?.contains(el)) return
-  notifyOpen.value = false
+  if (notifyOpen.value && !notifyWrapRef.value?.contains(el)) {
+    notifyOpen.value = false
+  }
+  if (meOpen.value && !meWrapRef.value?.contains(el)) {
+    meOpen.value = false
+  }
 }
 
 onMounted(async () => {
@@ -309,6 +344,8 @@ watch(
   () => route.fullPath,
   async () => {
     currentUser.value = getStoredUser()
+    meOpen.value = false
+    notifyOpen.value = false
     await refreshUnread()
   },
 )

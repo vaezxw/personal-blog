@@ -158,18 +158,6 @@
             <RouterLink class="profile-link" :to="{ name: 'user', params: { username: user.username } }">
               {{ t('admin.profile') }} →
             </RouterLink>
-            <RouterLink
-              class="profile-link"
-              :to="{ name: 'user-dashboard', params: { username: user.username } }"
-            >
-              {{ t('dash.open') }} →
-            </RouterLink>
-            <RouterLink
-              class="profile-link"
-              :to="{ name: 'user-library', params: { username: user.username } }"
-            >
-              {{ t('library.open') }} →
-            </RouterLink>
           </div>
         </div>
         <button class="btn ghost" type="button" @click="doLogout">{{ t('admin.logout') }}</button>
