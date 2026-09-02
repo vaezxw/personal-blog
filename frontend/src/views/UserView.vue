@@ -20,6 +20,10 @@
       <div class="user-actions">
         <template v-if="profile.isSelf">
           <nav class="me-hub" :aria-label="t('nav.me')">
+            <RouterLink class="me-hub-card" to="/me">
+              <strong>{{ t('nav.me') }}</strong>
+              <span class="muted">{{ t('user.hubAccount') }}</span>
+            </RouterLink>
             <RouterLink class="me-hub-card" to="/messages">
               <strong>{{ t('nav.messages') }}</strong>
               <span class="muted">{{ t('user.hubMessages') }}</span>
@@ -30,13 +34,6 @@
             >
               <strong>{{ t('nav.library') }}</strong>
               <span class="muted">{{ t('user.hubLibrary') }}</span>
-            </RouterLink>
-            <RouterLink
-              class="me-hub-card"
-              :to="{ name: 'user-dashboard', params: { username: profile.username } }"
-            >
-              <strong>{{ t('dash.open') }}</strong>
-              <span class="muted">{{ t('user.hubDash') }}</span>
             </RouterLink>
             <RouterLink class="me-hub-card" to="/admin">
               <strong>{{ t('user.manage') }}</strong>
@@ -81,7 +78,7 @@
             </RouterLink>
           </div>
           <p v-if="followHint" class="muted follow-hint">
-            <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('user.loginToFollow') }}
+            <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('user.loginToFollow') }}
           </p>
         </template>
       </div>

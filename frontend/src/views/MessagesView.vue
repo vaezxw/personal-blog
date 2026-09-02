@@ -7,7 +7,7 @@
         <p class="muted">{{ t('dm.lede') }}</p>
       </div>
       <p v-if="!me" class="muted dm-login-hint">
-        <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('dm.loginHint') }}
+        <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('dm.loginHint') }}
       </p>
     </header>
 

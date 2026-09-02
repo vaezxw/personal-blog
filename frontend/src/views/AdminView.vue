@@ -6,161 +6,27 @@
       <p class="lede">{{ t('admin.lede') }}</p>
     </header>
 
-    <div v-if="!user" class="panel auth-panel">
-      <div class="row tabs">
-        <button
-          type="button"
-          class="btn"
-          :class="{ ghost: mode !== 'login' }"
-          @click="switchMode('login')"
-        >
+    <div v-if="!user" class="panel studio-gate">
+      <p>{{ t('admin.pleaseLogin') }}</p>
+      <div class="studio-gate-actions">
+        <RouterLink class="btn" :to="{ name: 'me', query: { next: '/admin' } }">
           {{ t('admin.login') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          :class="{ ghost: mode !== 'register' }"
-          @click="switchMode('register')"
-        >
+        </RouterLink>
+        <RouterLink class="btn ghost" :to="{ name: 'me', query: { tab: 'register', next: '/admin' } }">
           {{ t('admin.register') }}
-        </button>
+        </RouterLink>
       </div>
-
-      <form v-if="mode === 'login'" class="auth-form" @submit.prevent="doLogin">
-        <label>{{ t('admin.loginOrUser') }}</label>
-        <input
-          v-model="auth.login"
-          required
-          autocomplete="username"
-          :placeholder="t('admin.loginPlaceholder')"
-        />
-        <label>{{ t('admin.password') }}</label>
-        <div class="password-field">
-          <input
-            v-model="auth.password"
-            :type="showLoginPassword ? 'text' : 'password'"
-            required
-            autocomplete="current-password"
-            :placeholder="t('admin.passwordPlaceholder')"
-          />
-          <button
-            type="button"
-            class="password-toggle"
-            :aria-label="showLoginPassword ? t('admin.hidePassword') : t('admin.showPassword')"
-            :title="showLoginPassword ? t('admin.hidePassword') : t('admin.showPassword')"
-            @click="showLoginPassword = !showLoginPassword"
-          >
-            <svg v-if="!showLoginPassword" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
-              />
-              <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" stroke-width="1.8" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3 3l18 18M10.6 10.6A2.8 2.8 0 0 0 13.4 13.4M7.1 7.3C5 8.6 3.4 10.6 2.5 12c0 0 3.5 6.5 9.5 6.5 1.7 0 3.2-.4 4.5-1M16.9 16.7C19 15.4 20.6 13.4 21.5 12c0 0-3.5-6.5-9.5-6.5-1.2 0-2.3.2-3.3.6"
-              />
-            </svg>
-          </button>
-        </div>
-        <button class="btn" type="submit" :disabled="authBusy">
-          {{ authBusy ? t('admin.loggingIn') : t('admin.login') }}
-        </button>
-        <p v-if="authError" class="error">{{ authError }}</p>
-      </form>
-
-      <form v-else class="auth-form" @submit.prevent="doRegister">
-        <label>{{ t('admin.email') }}</label>
-        <input
-          v-model="auth.email"
-          type="email"
-          required
-          autocomplete="email"
-          :placeholder="t('admin.emailPlaceholder')"
-        />
-        <label>{{ t('admin.username') }}</label>
-        <input
-          v-model="auth.username"
-          required
-          autocomplete="username"
-          :placeholder="t('admin.usernamePlaceholder')"
-        />
-        <label>{{ t('admin.password') }}</label>
-        <div class="password-field">
-          <input
-            v-model="auth.password"
-            :type="showRegisterPassword ? 'text' : 'password'"
-            required
-            autocomplete="new-password"
-            :placeholder="t('admin.passwordPlaceholder')"
-          />
-          <button
-            type="button"
-            class="password-toggle"
-            :aria-label="showRegisterPassword ? t('admin.hidePassword') : t('admin.showPassword')"
-            :title="showRegisterPassword ? t('admin.hidePassword') : t('admin.showPassword')"
-            @click="showRegisterPassword = !showRegisterPassword"
-          >
-            <svg v-if="!showRegisterPassword" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
-              />
-              <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" stroke-width="1.8" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3 3l18 18M10.6 10.6A2.8 2.8 0 0 0 13.4 13.4M7.1 7.3C5 8.6 3.4 10.6 2.5 12c0 0 3.5 6.5 9.5 6.5 1.7 0 3.2-.4 4.5-1M16.9 16.7C19 15.4 20.6 13.4 21.5 12c0 0-3.5-6.5-9.5-6.5-1.2 0-2.3.2-3.3.6"
-              />
-            </svg>
-          </button>
-        </div>
-        <button class="btn" type="submit" :disabled="authBusy">
-          {{ authBusy ? t('admin.registering') : t('admin.register') }}
-        </button>
-        <p v-if="authError" class="error">{{ authError }}</p>
-      </form>
     </div>
 
     <template v-else>
-      <div class="panel account-bar">
-        <div class="account-main">
-          <div class="account-avatar" aria-hidden="true">
-            <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" />
-            <template v-else>{{ user.username.slice(0, 1).toUpperCase() }}</template>
-          </div>
-          <div>
-            <p class="ok account-name">
-              {{ t('admin.loggedInAs') }}<strong>{{ user.username }}</strong>
-              <span class="muted">
-                （{{ user.role === 'admin' ? t('admin.roleAdmin') : t('admin.roleAuthor') }}）
-              </span>
-            </p>
-            <RouterLink class="profile-link" :to="{ name: 'user', params: { username: user.username } }">
-              {{ t('admin.profile') }} →
-            </RouterLink>
-          </div>
-        </div>
-        <button class="btn ghost" type="button" @click="doLogout">{{ t('admin.logout') }}</button>
+      <div class="studio-who muted">
+        <span>{{ t('admin.loggedInAs') }}<strong>{{ user.username }}</strong></span>
+        <span aria-hidden="true">·</span>
+        <RouterLink :to="{ name: 'me' }">{{ t('nav.me') }}</RouterLink>
+        <span aria-hidden="true">·</span>
+        <RouterLink :to="{ name: 'user', params: { username: user.username } }">
+          {{ t('admin.profile') }}
+        </RouterLink>
       </div>
 
       <nav class="studio-tabs" aria-label="studio">
@@ -470,10 +336,8 @@ import {
   fetchAllPosts,
   fetchMyStats,
   getStoredUser,
-  login,
   logout,
   me,
-  register,
   setStoredUser,
   updatePost,
   updateProfile,
@@ -488,12 +352,7 @@ import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.j
 const { t } = useLocale()
 
 const user = ref(getStoredUser())
-const mode = ref('login')
 const studioTab = ref('compose')
-const showLoginPassword = ref(false)
-const showRegisterPassword = ref(false)
-const authBusy = ref(false)
-const authError = ref('')
 const posts = ref([])
 const loading = ref(false)
 const listError = ref('')
@@ -530,13 +389,6 @@ const profileForm = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: '',
-})
-
-const auth = reactive({
-  login: '',
-  email: '',
-  username: '',
-  password: '',
 })
 
 const form = reactive({
@@ -582,13 +434,6 @@ function openLibrary() {
 function openStats() {
   studioTab.value = 'stats'
   loadStats()
-}
-
-function switchMode(next) {
-  mode.value = next
-  authError.value = ''
-  showLoginPassword.value = false
-  showRegisterPassword.value = false
 }
 
 function readFileAsText(file) {
@@ -727,6 +572,7 @@ async function doLogout() {
     /* ignore */
   }
   applyUser(null)
+  window.dispatchEvent(new CustomEvent('mohhen-auth-change'))
   posts.value = []
   studioTab.value = 'compose'
   stats.postCount = 0
@@ -737,45 +583,6 @@ async function doLogout() {
   stats.commentCount = 0
   stats.heat = 0
   resetForm()
-}
-
-async function doLogin() {
-  authBusy.value = true
-  authError.value = ''
-  try {
-    const data = await login({
-      email: auth.login,
-      password: auth.password,
-    })
-    applyUser(data.user)
-    auth.password = ''
-    studioTab.value = 'compose'
-    await Promise.all([loadPosts(), loadStats()])
-  } catch (err) {
-    authError.value = err.message || t('admin.loginFailed')
-  } finally {
-    authBusy.value = false
-  }
-}
-
-async function doRegister() {
-  authBusy.value = true
-  authError.value = ''
-  try {
-    const data = await register({
-      email: auth.email,
-      username: auth.username,
-      password: auth.password,
-    })
-    applyUser(data.user)
-    auth.password = ''
-    studioTab.value = 'compose'
-    await Promise.all([loadPosts(), loadStats()])
-  } catch (err) {
-    authError.value = err.message || t('admin.registerFailed')
-  } finally {
-    authBusy.value = false
-  }
 }
 
 function visibilityLabel(visibility) {
@@ -893,23 +700,38 @@ onMounted(restoreSession)
   margin-bottom: 1.25rem;
 }
 
-.auth-panel {
+.studio-gate {
+  display: grid;
+  gap: 0.85rem;
   max-width: 28rem;
 }
 
-.tabs {
-  margin-bottom: 1rem;
+.studio-gate p {
+  margin: 0;
+}
+
+.studio-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.auth-form {
-  display: grid;
-  gap: 0.55rem;
+.studio-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
 }
 
-.auth-form .btn {
-  margin-top: 0.4rem;
-  justify-self: start;
+.studio-who a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.studio-who strong {
+  color: var(--ink);
 }
 
 .password-field {

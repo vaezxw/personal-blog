@@ -37,6 +37,11 @@ const router = createRouter({
       component: () => import('../views/MessagesView.vue'),
       props: true,
     },
+    {
+      path: '/me',
+      name: 'me',
+      component: () => import('../views/MeView.vue'),
+    },
     { path: '/admin', name: 'admin', component: AdminView },
     { path: '/search', redirect: '/' },
   ],

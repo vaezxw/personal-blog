@@ -84,6 +84,9 @@
             </button>
             <div v-if="meOpen" class="me-panel geek-surface">
               <p class="me-panel-name">@{{ currentUser.username }}</p>
+              <RouterLink class="me-item" to="/me" @click="meOpen = false">
+                {{ t('nav.me') }}
+              </RouterLink>
               <RouterLink
                 class="me-item"
                 :to="{ name: 'user', params: { username: currentUser.username } }"
@@ -109,11 +112,21 @@
               >
                 {{ t('dash.open') }}
               </RouterLink>
-              <RouterLink class="me-item me-item-studio" to="/admin" @click="meOpen = false">
+              <RouterLink class="me-item" to="/admin" @click="meOpen = false">
                 {{ t('nav.admin') }}
               </RouterLink>
+              <button type="button" class="me-item me-item-logout" @click="onLogout">
+                {{ t('admin.logout') }}
+              </button>
             </div>
           </div>
+          <RouterLink
+            v-else
+            class="me-login"
+            :to="{ name: 'me' }"
+          >
+            {{ t('admin.login') }}
+          </RouterLink>
 
           <button
             type="button"
@@ -181,6 +194,7 @@ import {
   fetchNotifications,
   fetchUnreadCount,
   getStoredUser,
+  logout,
   markNotificationsRead,
   me,
   setStoredUser,
@@ -293,6 +307,21 @@ async function toggleNotify() {
 function toggleMe() {
   notifyOpen.value = false
   meOpen.value = !meOpen.value
+}
+
+async function onLogout() {
+  meOpen.value = false
+  try {
+    await logout()
+  } catch {
+    /* ignore */
+  }
+  currentUser.value = null
+  setStoredUser(null)
+  unreadCount.value = 0
+  dmUnreadCount.value = 0
+  notifications.value = []
+  window.dispatchEvent(new CustomEvent('mohhen-auth-change'))
 }
 
 async function markAllRead() {

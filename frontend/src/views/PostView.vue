@@ -98,10 +98,10 @@
         </div>
       </div>
       <p v-if="likeHint" class="muted like-hint">
-        <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('post.loginToLike') }}
+        <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToLike') }}
       </p>
       <p v-else-if="favoriteHint" class="muted like-hint">
-        <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('post.loginToFavorite') }}
+        <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToFavorite') }}
       </p>
     </div>
 
@@ -246,7 +246,7 @@
         </div>
       </form>
       <p v-else class="muted">
-        <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('post.loginToComment') }}
+        <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToComment') }}
       </p>
     </section>
 

@@ -107,8 +107,17 @@ export const messages = {
       hubLibrary: '赞过与收藏的文章',
       hubDash: '阅读互动一览',
       hubStudio: '写文章与账号',
+      hubAccount: '登录、注册与退出',
       loginToFollow: '后可关注或发私信。',
       followFailed: '关注失败',
+    },
+    me: {
+      eyebrow: 'account.space',
+      titleOut: '登录 / 注册',
+      titleIn: '我的',
+      ledeOut: '登录后可点赞、收藏、私信与进入创作台。',
+      ledeIn: '账号入口：私信、收藏、数据与创作。',
+      loggingOut: '退出中…',
     },
     dash: {
       eyebrow: 'analytics.board',
@@ -186,7 +195,7 @@ export const messages = {
     admin: {
       eyebrow: 'Studio',
       title: '创作台',
-      lede: '登录后发布文章、查看数据，并管理你的内容。',
+      lede: '写文章、管理内容与账号设置。登录请前往「我的」。',
       tabCompose: '写文章',
       tabLibrary: '文章库',
       tabStats: '数据',
@@ -563,8 +572,17 @@ export const messages = {
       hubLibrary: 'Liked and saved posts',
       hubDash: 'Engagement overview',
       hubStudio: 'Write and settings',
+      hubAccount: 'Sign in, register, or log out',
       loginToFollow: ' to follow or message.',
       followFailed: 'Follow failed',
+    },
+    me: {
+      eyebrow: 'account.space',
+      titleOut: 'Sign in / Register',
+      titleIn: 'Me',
+      ledeOut: 'Sign in to like, favorite, message, and open the studio.',
+      ledeIn: 'Your hub for messages, library, stats, and writing.',
+      loggingOut: 'Signing out…',
     },
     dash: {
       eyebrow: 'analytics.board',
@@ -642,7 +660,7 @@ export const messages = {
     admin: {
       eyebrow: 'Studio',
       title: 'Writing studio',
-      lede: 'Sign in to publish posts, check stats, and manage your content.',
+      lede: 'Write posts, manage content, and account settings. Sign in from Me.',
       tabCompose: 'Compose',
       tabLibrary: 'Library',
       tabStats: 'Stats',
