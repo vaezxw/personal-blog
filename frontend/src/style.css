@@ -215,7 +215,8 @@ textarea:focus-visible {
 }
 
 .shell:has(.about-page),
-.shell:has(.dash) {
+.shell:has(.dash),
+.shell:has(.tools-page) {
   width: min(1080px, calc(100% - 2rem));
 }
 

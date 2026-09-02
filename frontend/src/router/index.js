@@ -19,6 +19,7 @@ const router = createRouter({
       props: true,
     },
     { path: '/about', name: 'about', component: AboutView },
+    { path: '/tools', name: 'tools', component: () => import('../views/ToolsView.vue') },
     { path: '/admin', name: 'admin', component: AdminView },
     { path: '/search', redirect: '/' },
   ],
