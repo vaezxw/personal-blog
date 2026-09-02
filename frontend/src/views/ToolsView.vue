@@ -134,7 +134,7 @@ const activeMeta = computed(
 
 .tools-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr);
   gap: 0;
   padding: 0;
   overflow: hidden;
@@ -143,31 +143,43 @@ const activeMeta = computed(
 .tools-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem;
+  gap: 0.3rem;
+  padding: 0.85rem;
   border-right: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 90%, transparent);
+  max-height: min(78vh, 860px);
+  overflow-y: auto;
 }
 
 .tools-nav-btn {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.15rem;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
   border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+  padding: 0.7rem 0.8rem;
   cursor: pointer;
   color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tools-nav-btn:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .tools-nav-btn strong {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  line-height: 1.3;
 }
 
 .tools-nav-btn span {
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .tools-nav-btn.active {
@@ -190,7 +202,7 @@ const activeMeta = computed(
   font-size: 0.92rem;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 900px) {
   .tools-layout {
     grid-template-columns: 1fr;
   }
@@ -200,10 +212,14 @@ const activeMeta = computed(
     border-bottom: 1px solid var(--line);
     flex-direction: row;
     overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none;
+    gap: 0.4rem;
   }
 
   .tools-nav-btn {
-    min-width: 180px;
+    min-width: 160px;
+    flex: 0 0 auto;
   }
 }
 </style>
@@ -211,14 +227,132 @@ const activeMeta = computed(
 <style>
 .tools-page .tool-pane {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.95rem;
+}
+
+.tools-page .tool-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 0.85rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--input-bg) 70%, transparent);
+}
+
+.tools-page .tool-toolbar .tool-actions {
+  margin-left: auto;
+}
+
+.tools-page .tool-toolbar .tool-actions:only-child {
+  margin-left: 0;
 }
 
 .tools-page .tool-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
+}
+
+.tools-page .tool-control {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.tools-page .tool-control > span,
+.tools-page .tool-control > .tool-control-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.tools-page .tool-control select,
+.tools-page .tool-control input[type='text'],
+.tools-page .tool-control input[type='password'],
+.tools-page .tool-control input[type='datetime-local'],
+.tools-page .tool-control input:not([type]) {
+  width: auto;
+  min-width: 8.5rem;
+  max-width: 100%;
+}
+
+.tools-page .tool-control--wide select,
+.tools-page .tool-control--wide input {
+  min-width: 12rem;
+}
+
+.tools-page .tool-control--grow {
+  flex: 1 1 220px;
+}
+
+.tools-page .tool-control--grow input,
+.tools-page .tool-control--grow select {
+  width: 100%;
+  min-width: 0;
+}
+
+.tools-page .tool-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.55rem;
+  padding: 0 0.15rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tools-page .tool-check input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.tools-page select,
+.tools-page .tool-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto;
+  min-height: 2.55rem;
+  padding: 0.55rem 2.2rem 0.55rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background-color: var(--input-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 12px 8px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.dark .tools-page select,
+html.dark .tools-page .tool-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.tools-page select:hover,
+.tools-page .tool-select:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.tools-page select:focus,
+.tools-page .tool-select:focus,
+.tools-page select:focus-visible,
+.tools-page .tool-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .tools-page .tool-grid {
@@ -233,40 +367,66 @@ const activeMeta = computed(
 
 .tools-page .tool-field {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
-.tools-page .tool-field.inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-right: 0.25rem;
-}
-
-.tools-page .tool-field.inline input,
-.tools-page .tool-field.inline select {
-  min-width: 11rem;
+.tools-page .tool-field > label,
+.tools-page .tool-field > span.label {
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 .tools-page .tool-field textarea,
-.tools-page .tool-field input,
-.tools-page .tool-field select {
+.tools-page .tool-field input[type='text'],
+.tools-page .tool-field input[type='password'],
+.tools-page .tool-field input[type='datetime-local'],
+.tools-page .tool-field input:not([type]) {
   width: 100%;
 }
 
 .tools-page .tool-field textarea {
-  min-height: 280px;
+  min-height: 260px;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.tools-page .tool-field input[type='text'],
+.tools-page .tool-field input[type='password'],
+.tools-page .tool-field input[type='datetime-local'],
+.tools-page .tool-field input:not([type]),
+.tools-page .tool-control input[type='text'],
+.tools-page .tool-control input[type='password'],
+.tools-page .tool-control input[type='datetime-local'],
+.tools-page .tool-control input:not([type]) {
+  min-height: 2.55rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tools-page .tool-field input:focus,
+.tools-page .tool-control input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .tools-page .tool-tabs {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
-  padding: 0.2rem;
+  padding: 0.22rem;
   border: 1px solid var(--line);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--input-bg) 80%, transparent);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .tools-page .tool-tabs button {
@@ -274,8 +434,14 @@ const activeMeta = computed(
   background: transparent;
   color: var(--muted);
   border-radius: 999px;
-  padding: 0.32rem 0.85rem;
+  padding: 0.4rem 0.9rem;
   cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tools-page .tool-tabs button:hover {
+  color: var(--ink);
 }
 
 .tools-page .tool-tabs button.active {
@@ -284,7 +450,7 @@ const activeMeta = computed(
 }
 
 .tools-page .preview-box {
-  min-height: 280px;
+  min-height: 260px;
   border: 1px dashed var(--line);
   border-radius: 12px;
   display: grid;
@@ -303,6 +469,9 @@ const activeMeta = computed(
   position: relative;
   overflow: hidden;
   margin: 0;
+  min-height: 2.55rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .tools-page .file-btn input {
@@ -310,16 +479,41 @@ const activeMeta = computed(
   inset: 0;
   opacity: 0;
   cursor: pointer;
+  width: 100%;
 }
 
 .tools-page .tool-note {
   margin: 0;
   font-size: 0.88rem;
+  line-height: 1.5;
 }
 
-@media (max-width: 820px) {
+.tools-page .tool-feedback {
+  display: grid;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
   .tools-page .tool-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tools-page .tool-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .tools-page .tool-control,
+  .tools-page .tool-control--wide {
+    flex: 1 1 140px;
+  }
+
+  .tools-page .tool-control select,
+  .tools-page .tool-control input,
+  .tools-page .tool-control--wide select,
+  .tools-page .tool-control--wide input {
+    width: 100%;
+    min-width: 0;
   }
 }
 </style>

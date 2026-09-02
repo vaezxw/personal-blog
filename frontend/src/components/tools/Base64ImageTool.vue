@@ -20,17 +20,19 @@
     </div>
 
     <template v-if="mode === 'encode'">
-      <div class="tool-actions">
-        <label class="file-btn btn ghost">
-          <input type="file" accept="image/*" @change="onImageUpload" />
-          {{ t('tools.base64.pickImage') }}
-        </label>
-        <button class="btn" type="button" :disabled="!base64Out" @click="copyBase64">
-          {{ t('tools.common.copy') }}
-        </button>
-        <button class="btn ghost" type="button" :disabled="!base64Out" @click="downloadBase64">
-          {{ t('tools.common.download') }}
-        </button>
+      <div class="tool-toolbar">
+        <div class="tool-actions">
+          <label class="file-btn btn ghost">
+            <input type="file" accept="image/*" @change="onImageUpload" />
+            {{ t('tools.base64.pickImage') }}
+          </label>
+          <button class="btn" type="button" :disabled="!base64Out" @click="copyBase64">
+            {{ t('tools.common.copy') }}
+          </button>
+          <button class="btn ghost" type="button" :disabled="!base64Out" @click="downloadBase64">
+            {{ t('tools.common.download') }}
+          </button>
+        </div>
       </div>
       <div class="tool-grid tool-grid--preview">
         <div class="tool-field">
@@ -48,15 +50,17 @@
     </template>
 
     <template v-else>
-      <div class="tool-actions">
-        <label class="file-btn btn ghost">
-          <input type="file" accept=".txt,text/plain" @change="onBase64File" />
-          {{ t('tools.common.upload') }}
-        </label>
-        <button class="btn ghost" type="button" @click="decodeBase64">{{ t('tools.base64.decodeBtn') }}</button>
-        <button class="btn" type="button" :disabled="!decodedBlob" @click="downloadImage">
-          {{ t('tools.base64.saveImage') }}
-        </button>
+      <div class="tool-toolbar">
+        <div class="tool-actions">
+          <label class="file-btn btn ghost">
+            <input type="file" accept=".txt,text/plain" @change="onBase64File" />
+            {{ t('tools.common.upload') }}
+          </label>
+          <button class="btn ghost" type="button" @click="decodeBase64">{{ t('tools.base64.decodeBtn') }}</button>
+          <button class="btn" type="button" :disabled="!decodedBlob" @click="downloadImage">
+            {{ t('tools.base64.saveImage') }}
+          </button>
+        </div>
       </div>
       <div class="tool-grid tool-grid--preview">
         <div class="tool-field">

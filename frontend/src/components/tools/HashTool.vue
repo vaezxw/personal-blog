@@ -1,24 +1,26 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-actions">
-      <label class="tool-field inline">
+    <div class="tool-toolbar">
+      <label class="tool-control">
         <span>{{ t('tools.hash.algorithm') }}</span>
-        <select v-model="algorithm">
+        <select class="tool-select" v-model="algorithm">
           <option v-for="item in algorithms" :key="item.id" :value="item.id">
             {{ item.label }}
           </option>
         </select>
       </label>
-      <label class="file-btn btn ghost">
-        <input type="file" @change="onFile" />
-        {{ t('tools.common.upload') }}
-      </label>
-      <button class="btn" type="button" :disabled="busy" @click="runHash">
-        {{ busy ? t('tools.hash.running') : t('tools.hash.run') }}
-      </button>
-      <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
-        {{ t('tools.common.copy') }}
-      </button>
+      <div class="tool-actions">
+        <label class="file-btn btn ghost">
+          <input type="file" @change="onFile" />
+          {{ t('tools.common.upload') }}
+        </label>
+        <button class="btn" type="button" :disabled="busy" @click="runHash">
+          {{ busy ? t('tools.hash.running') : t('tools.hash.run') }}
+        </button>
+        <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
+          {{ t('tools.common.copy') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-grid">

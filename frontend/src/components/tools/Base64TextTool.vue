@@ -19,14 +19,16 @@
       </button>
     </div>
 
-    <div class="tool-actions">
-      <button class="btn ghost" type="button" @click="run">{{ t('tools.base64Text.run') }}</button>
-      <button class="btn" type="button" :disabled="!output" @click="copyOutput">
-        {{ t('tools.common.copy') }}
-      </button>
-      <button class="btn ghost" type="button" :disabled="!output" @click="downloadOutput">
-        {{ t('tools.common.download') }}
-      </button>
+    <div class="tool-toolbar">
+      <div class="tool-actions">
+        <button class="btn ghost" type="button" @click="run">{{ t('tools.base64Text.run') }}</button>
+        <button class="btn" type="button" :disabled="!output" @click="copyOutput">
+          {{ t('tools.common.copy') }}
+        </button>
+        <button class="btn ghost" type="button" :disabled="!output" @click="downloadOutput">
+          {{ t('tools.common.download') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-grid">

@@ -19,23 +19,29 @@
       </button>
     </div>
 
-    <div class="tool-actions">
-      <button class="btn ghost" type="button" @click="useNow">{{ t('tools.timestamp.now') }}</button>
-      <button class="btn" type="button" @click="convert">{{ t('tools.timestamp.convert') }}</button>
-      <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
-        {{ t('tools.common.copy') }}
-      </button>
-    </div>
-
-    <div class="tool-field">
-      <label>{{ t('tools.common.input') }}</label>
-      <input
-        v-if="mode === 'toTs'"
-        v-model="datetimeInput"
-        type="datetime-local"
-        step="1"
-      />
-      <input v-else v-model="timestampInput" type="text" :placeholder="t('tools.timestamp.placeholder')" />
+    <div class="tool-toolbar">
+      <label class="tool-control tool-control--grow">
+        <span>{{ t('tools.common.input') }}</span>
+        <input
+          v-if="mode === 'toTs'"
+          v-model="datetimeInput"
+          type="datetime-local"
+          step="1"
+        />
+        <input
+          v-else
+          v-model="timestampInput"
+          type="text"
+          :placeholder="t('tools.timestamp.placeholder')"
+        />
+      </label>
+      <div class="tool-actions">
+        <button class="btn ghost" type="button" @click="useNow">{{ t('tools.timestamp.now') }}</button>
+        <button class="btn" type="button" @click="convert">{{ t('tools.timestamp.convert') }}</button>
+        <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
+          {{ t('tools.common.copy') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-field">
@@ -135,15 +141,3 @@ async function copyOutput() {
   }
 }
 </script>
-
-<style scoped>
-.tool-field input[type='datetime-local'] {
-  width: 100%;
-  padding: 0.55rem 0.65rem;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--input-bg);
-  color: var(--ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-</style>

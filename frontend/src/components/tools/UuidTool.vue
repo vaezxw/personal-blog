@@ -1,23 +1,25 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-actions">
-      <label class="tool-field inline">
+    <div class="tool-toolbar">
+      <label class="tool-control">
         <span>{{ t('tools.uuid.count') }}</span>
-        <select v-model.number="count">
+        <select class="tool-select" v-model.number="count">
           <option v-for="n in counts" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <label class="check">
+      <label class="tool-check">
         <input v-model="uppercase" type="checkbox" />
         {{ t('tools.uuid.uppercase') }}
       </label>
-      <button class="btn" type="button" @click="generate">{{ t('tools.uuid.generate') }}</button>
-      <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
-        {{ t('tools.common.copy') }}
-      </button>
-      <button class="btn ghost" type="button" :disabled="!output" @click="downloadOutput">
-        {{ t('tools.common.download') }}
-      </button>
+      <div class="tool-actions">
+        <button class="btn" type="button" @click="generate">{{ t('tools.uuid.generate') }}</button>
+        <button class="btn ghost" type="button" :disabled="!output" @click="copyOutput">
+          {{ t('tools.common.copy') }}
+        </button>
+        <button class="btn ghost" type="button" :disabled="!output" @click="downloadOutput">
+          {{ t('tools.common.download') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-field">
@@ -66,13 +68,3 @@ function downloadOutput() {
   downloadText(output.value, 'uuids.txt')
 }
 </script>
-
-<style scoped>
-.check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.92rem;
-  color: var(--muted);
-}
-</style>

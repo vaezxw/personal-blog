@@ -1,26 +1,25 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-grid tool-grid--regex">
-      <div class="tool-field">
-        <label>{{ t('tools.regex.pattern') }}</label>
+    <div class="tool-toolbar">
+      <label class="tool-control tool-control--grow">
+        <span>{{ t('tools.regex.pattern') }}</span>
         <input v-model="pattern" type="text" :placeholder="t('tools.regex.patternPlaceholder')" />
-      </div>
-      <div class="tool-field">
-        <label>{{ t('tools.regex.flags') }}</label>
+      </label>
+      <div class="tool-control">
+        <span>{{ t('tools.regex.flags') }}</span>
         <div class="flag-row">
-          <label v-for="flag in flagOptions" :key="flag" class="check">
+          <label v-for="flag in flagOptions" :key="flag" class="tool-check compact">
             <input v-model="flags" type="checkbox" :value="flag" />
             {{ flag }}
           </label>
         </div>
       </div>
-    </div>
-
-    <div class="tool-actions">
-      <button class="btn" type="button" @click="runTest">{{ t('tools.regex.test') }}</button>
-      <button class="btn ghost" type="button" :disabled="!pattern" @click="runReplace">
-        {{ t('tools.regex.replace') }}
-      </button>
+      <div class="tool-actions">
+        <button class="btn" type="button" @click="runTest">{{ t('tools.regex.test') }}</button>
+        <button class="btn ghost" type="button" :disabled="!pattern" @click="runReplace">
+          {{ t('tools.regex.replace') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-field">
@@ -135,24 +134,22 @@ function runReplace() {
 </script>
 
 <style scoped>
-.tool-grid--regex {
-  grid-template-columns: 1fr 1fr;
-}
-
 .flag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem 1rem;
-  min-height: 2.4rem;
   align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-height: 2.55rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input-bg);
 }
 
-.check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.92rem;
-  color: var(--muted);
+.tool-check.compact {
+  min-height: auto;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .regex-summary {
@@ -183,11 +180,5 @@ function runReplace() {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.88rem;
   word-break: break-all;
-}
-
-@media (max-width: 820px) {
-  .tool-grid--regex {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

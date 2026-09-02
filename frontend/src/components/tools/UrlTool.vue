@@ -19,12 +19,14 @@
       </button>
     </div>
 
-    <div class="tool-actions">
-      <button class="btn ghost" type="button" @click="encode">{{ t('tools.url.encode') }}</button>
-      <button class="btn ghost" type="button" @click="decode">{{ t('tools.url.decode') }}</button>
-      <button class="btn" type="button" :disabled="!output" @click="copyOutput">
-        {{ t('tools.common.copy') }}
-      </button>
+    <div class="tool-toolbar">
+      <div class="tool-actions">
+        <button class="btn ghost" type="button" @click="encode">{{ t('tools.url.encode') }}</button>
+        <button class="btn ghost" type="button" @click="decode">{{ t('tools.url.decode') }}</button>
+        <button class="btn" type="button" :disabled="!output" @click="copyOutput">
+          {{ t('tools.common.copy') }}
+        </button>
+      </div>
     </div>
 
     <div class="tool-grid">

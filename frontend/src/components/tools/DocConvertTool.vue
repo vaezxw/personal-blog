@@ -1,23 +1,25 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-actions">
-      <label class="tool-field inline">
+    <div class="tool-toolbar">
+      <label class="tool-control tool-control--wide">
         <span>{{ t('tools.doc.direction') }}</span>
-        <select v-model="direction">
+        <select class="tool-select" v-model="direction">
           <option value="docx-pdf">{{ t('tools.doc.docxToPdf') }}</option>
           <option value="pdf-docx">{{ t('tools.doc.pdfToDocx') }}</option>
         </select>
       </label>
-      <label class="file-btn btn ghost">
-        <input type="file" :accept="acceptTypes" @change="onFile" />
-        {{ t('tools.common.upload') }}
-      </label>
-      <button class="btn" type="button" :disabled="!file || busy" @click="convert">
-        {{ busy ? t('tools.doc.converting') : t('tools.doc.convert') }}
-      </button>
-      <button class="btn ghost" type="button" :disabled="!resultBlob" @click="downloadResult">
-        {{ t('tools.common.download') }}
-      </button>
+      <div class="tool-actions">
+        <label class="file-btn btn ghost">
+          <input type="file" :accept="acceptTypes" @change="onFile" />
+          {{ t('tools.common.upload') }}
+        </label>
+        <button class="btn" type="button" :disabled="!file || busy" @click="convert">
+          {{ busy ? t('tools.doc.converting') : t('tools.doc.convert') }}
+        </button>
+        <button class="btn ghost" type="button" :disabled="!resultBlob" @click="downloadResult">
+          {{ t('tools.common.download') }}
+        </button>
+      </div>
     </div>
 
     <p v-if="fileName" class="muted">{{ t('tools.doc.selected', { name: fileName }) }}</p>

@@ -1,15 +1,17 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-actions">
-      <label class="file-btn btn ghost">
-        <input type="file" accept=".json,application/json" @change="onUpload" />
-        {{ t('tools.common.upload') }}
-      </label>
-      <button class="btn ghost" type="button" @click="formatJson">{{ t('tools.json.format') }}</button>
-      <button class="btn ghost" type="button" @click="minifyJson">{{ t('tools.json.minify') }}</button>
-      <button class="btn" type="button" :disabled="!output" @click="downloadResult">
-        {{ t('tools.common.download') }}
-      </button>
+    <div class="tool-toolbar">
+      <div class="tool-actions">
+        <label class="file-btn btn ghost">
+          <input type="file" accept=".json,application/json" @change="onUpload" />
+          {{ t('tools.common.upload') }}
+        </label>
+        <button class="btn ghost" type="button" @click="formatJson">{{ t('tools.json.format') }}</button>
+        <button class="btn ghost" type="button" @click="minifyJson">{{ t('tools.json.minify') }}</button>
+        <button class="btn" type="button" :disabled="!output" @click="downloadResult">
+          {{ t('tools.common.download') }}
+        </button>
+      </div>
     </div>
     <div class="tool-grid">
       <div class="tool-field">

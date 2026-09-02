@@ -1,15 +1,17 @@
 <template>
   <div class="tool-pane">
-    <div class="tool-actions">
-      <label class="tool-field inline">
+    <div class="tool-toolbar">
+      <label class="tool-control tool-control--grow">
         <span>{{ t('tools.crypto.password') }}</span>
         <input v-model="password" type="password" autocomplete="off" />
       </label>
-      <button class="btn ghost" type="button" @click="encrypt">{{ t('tools.crypto.encrypt') }}</button>
-      <button class="btn ghost" type="button" @click="decrypt">{{ t('tools.crypto.decrypt') }}</button>
-      <button class="btn" type="button" :disabled="!output" @click="downloadResult">
-        {{ t('tools.common.download') }}
-      </button>
+      <div class="tool-actions">
+        <button class="btn ghost" type="button" @click="encrypt">{{ t('tools.crypto.encrypt') }}</button>
+        <button class="btn ghost" type="button" @click="decrypt">{{ t('tools.crypto.decrypt') }}</button>
+        <button class="btn" type="button" :disabled="!output" @click="downloadResult">
+          {{ t('tools.common.download') }}
+        </button>
+      </div>
     </div>
     <div class="tool-grid">
       <div class="tool-field">
