@@ -2,10 +2,7 @@
   <article class="article article-with-toc" v-if="post" :class="{ 'toc-open': tocOpen && tocTree.length }">
     <div
       class="article-layout"
-      :class="{
-        'has-toc': tocTree.length,
-        'toc-expanded': tocOpen && tocTree.length,
-      }"
+      :class="{ 'has-toc': tocTree.length }"
     >
       <div class="article-main">
     <header class="post-header">
@@ -1143,10 +1140,6 @@ watch(
 }
 
 .article-layout.has-toc {
-  grid-template-columns: minmax(0, 1fr) 3.25rem;
-}
-
-.article-layout.toc-expanded {
   grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 20.5rem);
   gap: 1.75rem;
 }
@@ -1161,6 +1154,12 @@ watch(
   align-self: start;
   z-index: 20;
   max-height: calc(100vh - 2rem);
+  width: 100%;
+}
+
+.article-toc-rail:not(.open) {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .article-toc-rail :deep(.post-toc) {
@@ -1367,17 +1366,21 @@ watch(
   }
 
   .toc-reopen-edge {
-    min-height: 0;
     width: auto;
+    height: auto;
+    min-height: 0;
     flex-direction: row;
     padding: 0.65rem 0.95rem;
     border-radius: 999px;
     letter-spacing: 0;
+    font-size: 0.85rem;
+    gap: 0.35rem;
   }
 
   .toc-reopen-edge span {
     writing-mode: horizontal-tb;
     text-orientation: mixed;
+    white-space: nowrap;
   }
 
   .article.toc-open .toc-backdrop {

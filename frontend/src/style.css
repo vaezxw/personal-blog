@@ -224,7 +224,8 @@ textarea:focus-visible {
   width: min(1080px, calc(100% - 2rem));
 }
 
-.shell:has(.article-with-toc.toc-open) {
+/* 有大纲的文章：展开/收起侧栏时页宽保持不变，避免正文左右跳动 */
+.shell:has(.article-layout.has-toc) {
   width: min(1320px, calc(100% - 2rem));
 }
 
