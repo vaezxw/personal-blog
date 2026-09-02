@@ -470,6 +470,7 @@ watch(
   async () => {
     if (contentMode.value !== 'markdown' || mdPane.value === 'edit') return
     await nextTick()
+    await nextTick()
     await renderMermaidBlocks(mdPreviewEl.value)
   },
   { flush: 'post' },

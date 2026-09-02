@@ -23,17 +23,36 @@ marked.use({
       }
       return false
     },
+    image({ href, title, text }) {
+      const src = String(href || '')
+      const alt = escapeHtml(text || '')
+      const titleAttr = title ? ` title="${escapeHtml(title)}"` : ''
+      // 语雀 CDN 对站外 Referer 返回 403，必须去掉 Referer
+      const noReferrer = /cdn\.nlark\.com/i.test(src) ? ' referrerpolicy="no-referrer"' : ''
+      return `<img src="${escapeHtml(src)}" alt="${alt}"${titleAttr}${noReferrer} loading="lazy" />`
+    },
   },
 })
 
 /**
- * 语雀导出的流程图：源码塞进 HTML 注释，但 Mermaid 的 `-->` 会提前结束注释，
- * 箭头泄漏成正文；真正可显示的是后面的 CDN SVG。提取图片，丢掉破损注释。
+ * 语雀导出的流程图：
+ * 1) 源码藏在 HTML 注释里，但 Mermaid 的 `-->` 会提前结束注释，箭头泄漏成正文
+ * 2) 后面的 CDN SVG 在站外 Referer 下会 403，不能当图片用
+ * → 抽出 Mermaid 源码，交给前端 mermaid.js 渲染
  */
 function restoreYuqueDiagrams(md) {
   return String(md || '').replace(
-    /<!--\s*这是一个文本绘图[\s\S]*?!\[\]\((https:\/\/cdn\.nlark\.com\/yuque\/__mermaid[^)\s]+)\)/g,
-    '\n\n![]($1)\n\n',
+    /<!--\s*这是一个文本绘图，源码为：([\s\S]*?)!\[\]\((https:\/\/cdn\.nlark\.com\/yuque\/__mermaid[^)\s]+)\)/g,
+    (_, rawSource) => {
+      let code = String(rawSource || '')
+        // 语雀用结尾的 --> 关掉 HTML 注释，不是边
+        .replace(/-->\s*$/, '')
+        .trim()
+      if (!code) return '\n\n'
+      // 防止围栏被内容打断
+      code = code.replace(/```/g, "'''")
+      return `\n\n\`\`\`mermaid\n${code}\n\`\`\`\n\n`
+    },
   )
 }
 

@@ -398,6 +398,7 @@ watch(
   renderedHtml,
   async () => {
     await nextTick()
+    await nextTick()
     await renderMermaidBlocks(proseEl.value)
   },
   { flush: 'post' },

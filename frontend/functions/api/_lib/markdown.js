@@ -12,10 +12,17 @@ function normalizeMarkdown(md) {
     .replace(/^\uFEFF/, '')
     .replace(/\u00a0/g, ' ')
     .replace(/\r\n?/g, '\n')
-    // 语雀流程图：注释里的 --> 会截断注释，保留 CDN SVG
+    // 语雀流程图：CDN 图站外 403，抽出源码作 mermaid 块（服务端仅输出 pre，客户端再渲染）
     .replace(
-      /<!--\s*这是一个文本绘图[\s\S]*?!\[\]\((https:\/\/cdn\.nlark\.com\/yuque\/__mermaid[^)\s]+)\)/g,
-      '\n\n![]($1)\n\n',
+      /<!--\s*这是一个文本绘图，源码为：([\s\S]*?)!\[\]\((https:\/\/cdn\.nlark\.com\/yuque\/__mermaid[^)\s]+)\)/g,
+      (_, rawSource) => {
+        let code = String(rawSource || '')
+          .replace(/-->\s*$/, '')
+          .trim()
+          .replace(/```/g, "'''")
+        if (!code) return '\n\n'
+        return `\n\n\`\`\`mermaid\n${code}\n\`\`\`\n\n`
+      },
     )
 }
 
