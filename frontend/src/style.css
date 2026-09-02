@@ -220,6 +220,10 @@ textarea:focus-visible {
   width: min(1080px, calc(100% - 2rem));
 }
 
+.shell:has(.article-with-toc.toc-open) {
+  width: min(1180px, calc(100% - 2rem));
+}
+
 .site-header {
   position: relative;
   z-index: 50;
@@ -765,6 +769,7 @@ h2 {
   margin-top: 1.8rem;
   margin-bottom: 0.65rem;
   line-height: 1.25;
+  scroll-margin-top: 5rem;
 }
 
 .prose h1 {

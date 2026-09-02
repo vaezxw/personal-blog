@@ -192,6 +192,11 @@ export const messages = {
       loginForVisibility: '这篇设有阅读限制，请先登录后再试。',
       badgeFriends: '好友可见',
       badgePrivate: '仅自己可见',
+      toc: '大纲',
+      tocShow: '显示大纲',
+      tocHide: '收起大纲',
+      tocExpand: '展开',
+      tocCollapse: '折叠',
     },
     admin: {
       eyebrow: 'Studio',
@@ -664,6 +669,11 @@ export const messages = {
       loginForVisibility: 'This post is restricted — sign in and try again.',
       badgeFriends: 'Friends',
       badgePrivate: 'Private',
+      toc: 'Outline',
+      tocShow: 'Show outline',
+      tocHide: 'Hide outline',
+      tocExpand: 'Expand',
+      tocCollapse: 'Collapse',
     },
     admin: {
       eyebrow: 'Studio',

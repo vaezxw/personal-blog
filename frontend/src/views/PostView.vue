@@ -1,5 +1,7 @@
 <template>
-  <article class="article" v-if="post">
+  <article class="article article-with-toc" v-if="post" :class="{ 'toc-open': tocOpen && tocTree.length }">
+    <div class="article-layout" :class="{ 'has-toc': tocOpen && tocTree.length }">
+      <div class="article-main">
     <header class="post-header">
       <RouterLink
         v-if="post.authorUsername"
@@ -251,6 +253,43 @@
     </section>
 
     <RouterLink class="back" to="/">{{ t('post.back') }}</RouterLink>
+      </div>
+
+      <aside v-if="tocTree.length && tocOpen" class="article-toc-rail open">
+        <PostToc
+          :tree="tocTree"
+          :content-root="proseEl"
+          @hide="setTocOpen(false)"
+        />
+      </aside>
+    </div>
+
+    <button
+      v-if="tocTree.length && !tocOpen"
+      type="button"
+      class="toc-reopen-edge"
+      :aria-label="t('post.tocShow')"
+      :title="t('post.tocShow')"
+      @click="setTocOpen(true)"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          d="M5 7h14M5 12h10M5 17h12"
+        />
+      </svg>
+      <span>{{ t('post.toc') }}</span>
+    </button>
+
+    <div
+      v-if="tocTree.length && tocOpen"
+      class="toc-backdrop"
+      aria-hidden="true"
+      @click="setTocOpen(false)"
+    ></div>
   </article>
   <p v-else-if="loading" class="muted">{{ t('post.loading') }}</p>
   <p v-else class="error">{{ error || t('post.missing') }}</p>
@@ -273,8 +312,10 @@ import {
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 import EmojiPicker from '../components/EmojiPicker.vue'
+import PostToc from '../components/PostToc.vue'
 import { renderPostContent } from '../utils/contentFormat.js'
 import { renderMermaidBlocks } from '../utils/mermaidBlocks.js'
+import { buildTocTree, collectHeadings } from '../utils/postToc.js'
 import {
   canUseNativeShare,
   copyText,
@@ -393,16 +434,48 @@ const renderedHtml = computed(() => {
 })
 
 const proseEl = ref(null)
+const tocTree = ref([])
+const TOC_STORAGE_KEY = 'mohhen-post-toc-open'
 
-watch(
-  renderedHtml,
-  async () => {
-    await nextTick()
-    await nextTick()
-    await renderMermaidBlocks(proseEl.value)
-  },
-  { flush: 'post' },
-)
+function readTocOpen() {
+  try {
+    const v = localStorage.getItem(TOC_STORAGE_KEY)
+    if (v === null) {
+      return typeof window !== 'undefined' && window.matchMedia('(min-width: 981px)').matches
+    }
+    return v !== '0'
+  } catch {
+    return true
+  }
+}
+
+const tocOpen = ref(readTocOpen())
+
+function setTocOpen(open) {
+  tocOpen.value = open
+  try {
+    localStorage.setItem(TOC_STORAGE_KEY, open ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
+
+async function refreshProseExtras() {
+  await nextTick()
+  await nextTick()
+  const root = proseEl.value
+  if (!root) {
+    tocTree.value = []
+    return
+  }
+  const items = collectHeadings(root)
+  tocTree.value = items.length >= 2 ? buildTocTree(items) : []
+  await renderMermaidBlocks(root)
+}
+
+watch(renderedHtml, () => {
+  refreshProseExtras()
+}, { flush: 'post' })
 
 const authorLetter = computed(() =>
   (post.value?.authorUsername || '?').slice(0, 1).toUpperCase(),
@@ -1049,5 +1122,239 @@ watch(
 
 .comment-compose-actions .btn {
   justify-self: start;
+}
+
+.article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.article-layout.has-toc {
+  grid-template-columns: minmax(0, 1fr) 15.25rem;
+}
+
+.article-main {
+  min-width: 0;
+}
+
+.article-toc-rail {
+  position: sticky;
+  top: 1.1rem;
+  align-self: start;
+  z-index: 20;
+}
+
+.article-toc-rail :deep(.post-toc) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: calc(100vh - 2rem);
+  padding: 0.85rem 0.75rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.article-toc-rail :deep(.post-toc-head) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.15rem 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.article-toc-rail :deep(.post-toc-head strong) {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.article-toc-rail :deep(.post-toc-icon-btn),
+.toc-reopen-edge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  background: var(--chip-bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.article-toc-rail :deep(.post-toc-icon-btn) {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 8px;
+  padding: 0;
+}
+
+.article-toc-rail :deep(.post-toc-icon-btn svg),
+.toc-reopen-edge svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.article-toc-rail :deep(.post-toc-icon-btn:hover),
+.toc-reopen-edge:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--accent);
+}
+
+.article-toc-rail :deep(.post-toc-nav) {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+}
+
+.article-toc-rail :deep(.post-toc-list) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.article-toc-rail :deep(.post-toc-row) {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.15rem;
+  align-items: start;
+}
+
+.article-toc-rail :deep(.post-toc-twist) {
+  width: 1.1rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.article-toc-rail :deep(.post-toc-twist svg) {
+  width: 0.72rem;
+  height: 0.72rem;
+  transition: transform 0.15s ease;
+}
+
+.article-toc-rail :deep(.post-toc-twist.open svg) {
+  transform: rotate(90deg);
+}
+
+.article-toc-rail :deep(.post-toc-twist.spacer) {
+  cursor: default;
+  visibility: hidden;
+}
+
+.article-toc-rail :deep(.post-toc-link) {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.28rem 0.4rem;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  cursor: pointer;
+  width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.article-toc-rail :deep(.post-toc-link:hover) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.article-toc-rail :deep(.post-toc-link.active) {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+
+.toc-reopen-edge {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 70;
+  transform: translateY(-50%);
+  flex-direction: column;
+  padding: 0.85rem 0.55rem 0.85rem 0.65rem;
+  border-radius: 12px 0 0 12px;
+  border-right: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  gap: 0.45rem;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.08em;
+}
+
+.toc-reopen-edge span {
+  writing-mode: vertical-rl;
+}
+
+.toc-backdrop {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .article-layout.has-toc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .article-toc-rail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(18.5rem, 86vw);
+    z-index: 80;
+    padding: 1rem 0.85rem;
+    background: transparent;
+  }
+
+  .article-toc-rail :deep(.post-toc) {
+    height: 100%;
+    max-height: none;
+  }
+
+  .toc-reopen-edge {
+    top: auto;
+    bottom: 1.25rem;
+    right: 1rem;
+    transform: none;
+    flex-direction: row;
+    writing-mode: horizontal-tb;
+    letter-spacing: 0;
+    padding: 0.65rem 0.95rem;
+    border-radius: 999px;
+    border-right: 1px solid var(--line);
+  }
+
+  .toc-reopen-edge span {
+    writing-mode: horizontal-tb;
+  }
+
+  .article.toc-open .toc-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 75;
+    background: rgba(15, 23, 42, 0.35);
+  }
 }
 </style>
