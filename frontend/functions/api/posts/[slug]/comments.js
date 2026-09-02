@@ -1,5 +1,5 @@
 import { newId } from '../../_lib/crypto.js'
-import { mapComment } from '../../_lib/comments.js'
+import { COMMENT_SELECT, mapComment } from '../../_lib/comments.js'
 import { createNotification } from '../../_lib/notifications.js'
 import { optionalUser, requireUser } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
@@ -26,9 +26,7 @@ export async function onRequest(context) {
 
   if (request.method === 'GET') {
     const { results } = await env.DB.prepare(
-      `SELECT c.*, u.username, u.avatar_url
-       FROM comments c
-       JOIN users u ON u.id = c.user_id
+      `${COMMENT_SELECT}
        WHERE c.post_id = ?
        ORDER BY c.created_at ASC`,
     )
@@ -47,13 +45,24 @@ export async function onRequest(context) {
       if (!content) return json(400, { error: 'content is required' })
       if (content.length > 2000) return json(400, { error: 'content too long' })
 
+      let parentId = body.parentId ? String(body.parentId).trim() : null
+      let parent = null
+      if (parentId) {
+        parent = await env.DB.prepare('SELECT * FROM comments WHERE id = ? AND post_id = ?')
+          .bind(parentId, post.id)
+          .first()
+        if (!parent) return json(400, { error: 'parent comment not found' })
+        // Flatten to one-level thread under the root comment
+        if (parent.parent_id) parentId = parent.parent_id
+      }
+
       const id = newId('c')
       const createdAt = new Date().toISOString()
       await env.DB.prepare(
-        `INSERT INTO comments (id, post_id, user_id, content, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO comments (id, post_id, user_id, content, created_at, parent_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
-        .bind(id, post.id, auth.user.id, content, createdAt)
+        .bind(id, post.id, auth.user.id, content, createdAt, parentId)
         .run()
 
       await createNotification(env.DB, {
@@ -64,15 +73,17 @@ export async function onRequest(context) {
         commentId: id,
       })
 
-      const row = await env.DB.prepare(
-        `SELECT c.*, u.username, u.avatar_url
-         FROM comments c
-         JOIN users u ON u.id = c.user_id
-         WHERE c.id = ?`,
-      )
-        .bind(id)
-        .first()
+      if (parent) {
+        await createNotification(env.DB, {
+          userId: parent.user_id,
+          actorId: auth.user.id,
+          type: 'reply',
+          postId: post.id,
+          commentId: id,
+        })
+      }
 
+      const row = await env.DB.prepare(`${COMMENT_SELECT} WHERE c.id = ?`).bind(id).first()
       return json(201, mapComment(row))
     } catch (err) {
       return json(400, { error: err.message || 'Invalid JSON body' })

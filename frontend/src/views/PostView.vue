@@ -100,38 +100,95 @@
       <p v-else-if="commentsError" class="error">{{ commentsError }}</p>
       <ul v-else class="comment-list">
         <li
-          v-for="c in comments"
-          :id="`comment-${c.id}`"
-          :key="c.id"
-          :class="{ flash: highlightTarget === `comment-${c.id}` }"
+          v-for="thread in commentThreads"
+          :id="`comment-${thread.root.id}`"
+          :key="thread.root.id"
+          :class="{ flash: highlightTarget === `comment-${thread.root.id}` }"
         >
           <RouterLink
             class="person-avatar sm"
-            :to="{ name: 'user', params: { username: c.username } }"
-            :aria-label="c.username"
+            :to="{ name: 'user', params: { username: thread.root.username } }"
+            :aria-label="thread.root.username"
           >
-            <img v-if="c.avatarUrl" :src="c.avatarUrl" alt="" />
-            <template v-else>{{ (c.username || '?').slice(0, 1).toUpperCase() }}</template>
+            <img v-if="thread.root.avatarUrl" :src="thread.root.avatarUrl" alt="" />
+            <template v-else>{{ (thread.root.username || '?').slice(0, 1).toUpperCase() }}</template>
           </RouterLink>
           <div class="comment-body">
             <div class="comment-head">
               <RouterLink
                 class="person-name"
-                :to="{ name: 'user', params: { username: c.username } }"
+                :to="{ name: 'user', params: { username: thread.root.username } }"
               >
-                {{ c.username }}
+                {{ thread.root.username }}
               </RouterLink>
-              <time :datetime="c.createdAt">{{ formatDate(c.createdAt) }}</time>
+              <time :datetime="thread.root.createdAt">{{ formatDate(thread.root.createdAt) }}</time>
               <button
-                v-if="canDeleteComment(c)"
+                v-if="currentUser"
+                class="btn ghost small"
+                type="button"
+                @click="startReply(thread.root)"
+              >
+                {{ t('post.reply') }}
+              </button>
+              <button
+                v-if="canDeleteComment(thread.root)"
                 class="btn ghost danger small"
                 type="button"
-                @click="removeComment(c)"
+                @click="removeComment(thread.root)"
               >
                 {{ t('post.delete') }}
               </button>
             </div>
-            <p>{{ c.content }}</p>
+            <p class="comment-text">{{ thread.root.content }}</p>
+
+            <ul v-if="thread.replies.length" class="reply-list">
+              <li
+                v-for="reply in thread.replies"
+                :id="`comment-${reply.id}`"
+                :key="reply.id"
+                :class="{ flash: highlightTarget === `comment-${reply.id}` }"
+              >
+                <RouterLink
+                  class="person-avatar xs"
+                  :to="{ name: 'user', params: { username: reply.username } }"
+                  :aria-label="reply.username"
+                >
+                  <img v-if="reply.avatarUrl" :src="reply.avatarUrl" alt="" />
+                  <template v-else>{{ (reply.username || '?').slice(0, 1).toUpperCase() }}</template>
+                </RouterLink>
+                <div class="comment-body">
+                  <div class="comment-head">
+                    <RouterLink
+                      class="person-name"
+                      :to="{ name: 'user', params: { username: reply.username } }"
+                    >
+                      {{ reply.username }}
+                    </RouterLink>
+                    <span v-if="reply.replyToUsername" class="reply-to muted">
+                      {{ t('post.replyTo', { user: reply.replyToUsername }) }}
+                    </span>
+                    <time :datetime="reply.createdAt">{{ formatDate(reply.createdAt) }}</time>
+                    <button
+                      v-if="currentUser"
+                      class="btn ghost small"
+                      type="button"
+                      @click="startReply(reply)"
+                    >
+                      {{ t('post.reply') }}
+                    </button>
+                    <button
+                      v-if="canDeleteComment(reply)"
+                      class="btn ghost danger small"
+                      type="button"
+                      @click="removeComment(reply)"
+                    >
+                      {{ t('post.delete') }}
+                    </button>
+                  </div>
+                  <p class="comment-text">{{ reply.content }}</p>
+                </div>
+              </li>
+            </ul>
           </div>
         </li>
       </ul>
@@ -146,17 +203,31 @@
             <template v-else>{{ (currentUser.username || '?').slice(0, 1).toUpperCase() }}</template>
           </span>
           <div class="comment-compose-fields">
-            <label>{{ t('post.writeComment') }}</label>
+            <div class="comment-compose-label-row">
+              <label>{{ replyTarget ? t('post.replyingTo', { user: replyTarget.username }) : t('post.writeComment') }}</label>
+              <button
+                v-if="replyTarget"
+                class="btn ghost small"
+                type="button"
+                @click="cancelReply"
+              >
+                {{ t('post.cancelReply') }}
+              </button>
+            </div>
             <textarea
+              ref="commentInputRef"
               v-model="commentText"
               rows="3"
-              :placeholder="t('post.commentPlaceholder')"
+              :placeholder="replyTarget ? t('post.replyPlaceholder') : t('post.commentPlaceholder')"
               required
               maxlength="2000"
             ></textarea>
-            <button class="btn" type="submit" :disabled="commentBusy">
-              {{ commentBusy ? t('post.sending') : t('post.send') }}
-            </button>
+            <div class="comment-compose-actions">
+              <EmojiPicker :label="t('post.emoji')" @pick="insertEmoji" />
+              <button class="btn" type="submit" :disabled="commentBusy">
+                {{ commentBusy ? t('post.sending') : replyTarget ? t('post.sendReply') : t('post.send') }}
+              </button>
+            </div>
             <p v-if="commentFormError" class="error">{{ commentFormError }}</p>
           </div>
         </div>
@@ -187,6 +258,7 @@ import {
   togglePostLike,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import EmojiPicker from '../components/EmojiPicker.vue'
 import { renderPostContent } from '../utils/contentFormat.js'
 import {
   canUseNativeShare,
@@ -212,9 +284,11 @@ const comments = ref([])
 const commentsLoading = ref(true)
 const commentsError = ref('')
 const currentUser = ref(getStoredUser())
+const commentInputRef = ref(null)
 const commentText = ref('')
 const commentBusy = ref(false)
 const commentFormError = ref('')
+const replyTarget = ref(null)
 const likeBusy = ref(false)
 const likeHint = ref(false)
 const shareOpen = ref(false)
@@ -304,6 +378,24 @@ const renderedHtml = computed(() => {
 const authorLetter = computed(() =>
   (post.value?.authorUsername || '?').slice(0, 1).toUpperCase(),
 )
+
+const commentThreads = computed(() => {
+  const roots = []
+  const repliesByParent = new Map()
+  for (const c of comments.value) {
+    if (c.parentId) {
+      const list = repliesByParent.get(c.parentId) || []
+      list.push(c)
+      repliesByParent.set(c.parentId, list)
+    } else {
+      roots.push(c)
+    }
+  }
+  return roots.map((root) => ({
+    root,
+    replies: repliesByParent.get(root.id) || [],
+  }))
+})
 
 function canDeleteComment(c) {
   if (!currentUser.value) return false
@@ -419,9 +511,11 @@ async function submitComment() {
   commentBusy.value = true
   commentFormError.value = ''
   try {
-    const created = await createComment(props.slug, commentText.value.trim())
+    const parentId = replyTarget.value?.parentId || replyTarget.value?.id || null
+    const created = await createComment(props.slug, commentText.value.trim(), parentId)
     comments.value = [...comments.value, created]
     commentText.value = ''
+    replyTarget.value = null
     if (post.value) {
       post.value = { ...post.value, commentCount: (post.value.commentCount || 0) + 1 }
     }
@@ -432,16 +526,54 @@ async function submitComment() {
   }
 }
 
+function startReply(comment) {
+  replyTarget.value = comment
+  nextTick(() => {
+    commentInputRef.value?.focus()
+    commentInputRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+function cancelReply() {
+  replyTarget.value = null
+}
+
+function insertEmoji(emoji) {
+  const el = commentInputRef.value
+  const text = commentText.value || ''
+  if (!el) {
+    commentText.value = text + emoji
+    return
+  }
+  const start = el.selectionStart ?? text.length
+  const end = el.selectionEnd ?? text.length
+  commentText.value = text.slice(0, start) + emoji + text.slice(end)
+  nextTick(() => {
+    const pos = start + emoji.length
+    el.focus()
+    el.setSelectionRange(pos, pos)
+  })
+}
+
 async function removeComment(c) {
   if (!confirm(t('post.deleteConfirm'))) return
   try {
     await deleteComment(c.id)
-    comments.value = comments.value.filter((x) => x.id !== c.id)
+    const removedIds = new Set([c.id])
+    if (!c.parentId) {
+      for (const item of comments.value) {
+        if (item.parentId === c.id) removedIds.add(item.id)
+      }
+    }
+    comments.value = comments.value.filter((x) => !removedIds.has(x.id))
     if (post.value) {
       post.value = {
         ...post.value,
-        commentCount: Math.max(0, (post.value.commentCount || 1) - 1),
+        commentCount: Math.max(0, (post.value.commentCount || removedIds.size) - removedIds.size),
       }
+    }
+    if (replyTarget.value && removedIds.has(replyTarget.value.id)) {
+      replyTarget.value = null
     }
   } catch (err) {
     commentsError.value = err.message || t('post.deleteFailed')
@@ -770,22 +902,51 @@ watch(
   min-width: 0;
 }
 
-.comment-body > p {
+.comment-text {
   margin: 0.2rem 0 0;
   line-height: 1.55;
   color: var(--prose-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .comment-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem 0.75rem;
+  gap: 0.35rem 0.65rem;
 }
 
 .comment-head time {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.reply-to {
+  font-size: 0.85rem;
+}
+
+.reply-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0 0 0.85rem;
+  border-left: 2px solid var(--line);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reply-list > li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  scroll-margin-top: 5rem;
+}
+
+.person-avatar.xs {
+  width: 1.85rem;
+  height: 1.85rem;
+  font-size: 0.75rem;
 }
 
 .btn.small {
@@ -810,7 +971,22 @@ watch(
   min-width: 0;
 }
 
-.comment-compose-fields .btn {
+.comment-compose-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.comment-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.comment-compose-actions .btn {
   justify-self: start;
 }
 </style>

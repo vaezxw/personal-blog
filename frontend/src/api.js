@@ -123,10 +123,10 @@ export function fetchComments(slug) {
   return request(`/api/posts/${encodeURIComponent(slug)}/comments`)
 }
 
-export function createComment(slug, content) {
+export function createComment(slug, content, parentId = null) {
   return request(`/api/posts/${encodeURIComponent(slug)}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, parentId: parentId || undefined }),
   })
 }
 

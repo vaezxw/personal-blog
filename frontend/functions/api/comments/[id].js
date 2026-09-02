@@ -17,6 +17,8 @@ export async function onRequest(context) {
   const canDelete = auth.user.role === 'admin' || comment.user_id === auth.user.id
   if (!canDelete) return json(403, { error: 'Forbidden' })
 
+  // Delete nested replies first, then the comment itself
+  await env.DB.prepare('DELETE FROM comments WHERE parent_id = ?').bind(id).run()
   await env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(id).run()
   return new Response(null, { status: 204, headers: corsHeaders() })
 }

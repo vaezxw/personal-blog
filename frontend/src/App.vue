@@ -155,6 +155,7 @@ const unreadLabel = computed(() => (unreadCount.value > 99 ? '99+' : String(unre
 
 function notifyText(n) {
   if (n.type === 'follow') return t('notify.follow', { user: n.actorUsername || 'user' })
+  if (n.type === 'reply') return t('notify.reply', { user: n.actorUsername || 'user' })
   const key = n.type === 'like' ? 'notify.like' : 'notify.comment'
   return t(key, { user: n.actorUsername || 'user', title: n.postTitle || '' })
 }
