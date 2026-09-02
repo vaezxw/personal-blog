@@ -12,14 +12,14 @@ export async function onRequest(context) {
 
   try {
     const body = await readJson(request)
-    const emailRaw = String(body.email || '').trim().toLowerCase()
+    const email = String(body.email || '').trim().toLowerCase()
     const username = String(body.username || '').trim()
     const password = String(body.password || '')
 
-    if (!username || !password) {
-      return json(400, { error: 'username and password are required' })
+    if (!email || !username || !password) {
+      return json(400, { error: 'email, username and password are required' })
     }
-    if (emailRaw && !isDeliverableEmail(emailRaw)) {
+    if (!isDeliverableEmail(email)) {
       return json(400, { error: 'Invalid email' })
     }
     if (username.length < 2 || username.length > 32) {
@@ -33,8 +33,6 @@ export async function onRequest(context) {
     const isFirst = Number(countRow?.c || 0) === 0
     const role = isFirst ? 'admin' : 'author'
     const id = newId('u')
-    // 未填邮箱：占位地址，邮件推送会跳过（isDeliverableEmail = false）
-    const email = emailRaw || `none.${id}@noreply.invalid`
     const passwordHash = await hashPassword(password)
     const createdAt = new Date().toISOString()
 
@@ -53,12 +51,9 @@ export async function onRequest(context) {
       throw err
     }
 
-    const publicEmail = isDeliverableEmail(email) ? email : null
-    const user = { id, email: publicEmail || email, username, role, created_at: createdAt }
+    const user = { id, email, username, role, created_at: createdAt }
     const session = await createSession(env, user, request)
-    const pub = publicUser(user)
-    if (!isDeliverableEmail(email)) pub.email = null
-    return jsonWithSetCookies(201, { user: pub }, session.cookieHeaders)
+    return jsonWithSetCookies(201, { user: publicUser(user) }, session.cookieHeaders)
   } catch (err) {
     return json(500, { error: err.message || 'Server error' })
   }
