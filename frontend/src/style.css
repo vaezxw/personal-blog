@@ -224,9 +224,11 @@ textarea:focus-visible {
   width: min(1080px, calc(100% - 2rem));
 }
 
-/* 有大纲的文章：展开/收起侧栏时页宽保持不变，避免正文左右跳动 */
-.shell:has(.article-layout.has-toc) {
-  width: min(1320px, calc(100% - 2rem));
+/* 有大纲的文章：仅桌面加宽，避免手机端被 1320 布局挤压 */
+@media (min-width: 981px) {
+  .shell:has(.article-layout.has-toc) {
+    width: min(1320px, calc(100% - 2rem));
+  }
 }
 
 .site-header {
@@ -1081,6 +1083,24 @@ h2 {
     width: min(100% - 1.25rem, 920px);
   }
 
+  h1 {
+    font-size: clamp(1.75rem, 8vw, 2.35rem);
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 0.65rem 0.9rem;
+    width: 100%;
+  }
+
+  .header-tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-left: 0;
+    width: 100%;
+    gap: 0.45rem;
+  }
+
   .post-row,
   .about-grid {
     grid-template-columns: 1fr;
@@ -1089,15 +1109,14 @@ h2 {
   .site-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.85rem;
   }
 
   .header-right {
     width: 100%;
-    justify-content: space-between;
-  }
-
-  .header-tools {
-    margin-left: auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
   }
 
   .admin-list li,
@@ -1113,6 +1132,21 @@ h2 {
   .admin-item-meta strong,
   .admin-item-meta .muted {
     white-space: normal;
+  }
+
+  .prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .prose pre {
+    max-width: 100%;
+  }
+
+  .prose pre.mermaid svg {
+    max-width: 100%;
   }
 }
 

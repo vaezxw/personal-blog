@@ -457,6 +457,8 @@ function readTocOpen() {
 }
 
 const tocOpen = ref(readTocOpen())
+const TOC_MQ = '(min-width: 981px)'
+let tocMq = null
 
 function setTocOpen(open) {
   tocOpen.value = open
@@ -464,6 +466,14 @@ function setTocOpen(open) {
     localStorage.setItem(TOC_STORAGE_KEY, open ? '1' : '0')
   } catch {
     /* ignore */
+  }
+}
+
+/** 窄屏强制收起抽屉，不改写桌面端记忆 */
+function syncTocToViewport() {
+  if (typeof window === 'undefined') return
+  if (!window.matchMedia(TOC_MQ).matches && tocOpen.value) {
+    tocOpen.value = false
   }
 }
 
@@ -735,12 +745,23 @@ onMounted(() => {
   load()
   nativeShareAvailable.value = canUseNativeShare()
   document.addEventListener('pointerdown', onShareDocPointer)
+  syncTocToViewport()
+  if (typeof window !== 'undefined') {
+    tocMq = window.matchMedia(TOC_MQ)
+    tocMq.addEventListener?.('change', syncTocToViewport)
+    tocMq.addListener?.(syncTocToViewport)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onShareDocPointer)
   if (shareHintTimer) clearTimeout(shareHintTimer)
   if (highlightTimer) clearTimeout(highlightTimer)
+  if (tocMq) {
+    tocMq.removeEventListener?.('change', syncTocToViewport)
+    tocMq.removeListener?.(syncTocToViewport)
+    tocMq = null
+  }
 })
 
 watch(() => props.slug, () => {
@@ -1338,26 +1359,58 @@ watch(
 }
 
 @media (max-width: 980px) {
-  .article-layout.has-toc,
-  .article-layout.toc-expanded {
-    grid-template-columns: minmax(0, 1fr);
+  /* 手机端单列正文，大纲改为悬浮层，不再占栅格宽度 */
+  .article-layout,
+  .article-layout.has-toc {
+    display: block;
+    grid-template-columns: none;
+    gap: 0;
   }
 
-  .article-toc-rail {
+  .article-main {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .post-header h1 {
+    font-size: clamp(1.7rem, 7.5vw, 2.2rem);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .engage-bar {
+    gap: 0.55rem 0.75rem;
+  }
+
+  .article-toc-rail,
+  .article-toc-rail:not(.open),
+  .article-toc-rail.open {
     position: fixed;
-    top: auto;
-    right: 1rem;
-    bottom: 1.25rem;
-    left: auto;
     z-index: 80;
-    max-height: none;
     width: auto;
+    max-height: none;
+    align-self: auto;
+    display: block;
+    justify-content: initial;
+  }
+
+  .article-toc-rail:not(.open) {
+    top: auto;
+    left: auto;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+    padding: 0;
+    inset: auto;
   }
 
   .article-toc-rail.open {
-    inset: 0 0 0 auto;
-    width: min(20.5rem, 88vw);
-    padding: 1rem 0.85rem;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(20rem, 88vw);
+    padding: 0.85rem 0.75rem;
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
   }
 
   .article-toc-rail :deep(.post-toc) {
@@ -1370,11 +1423,12 @@ watch(
     height: auto;
     min-height: 0;
     flex-direction: row;
-    padding: 0.65rem 0.95rem;
+    padding: 0.7rem 1rem;
     border-radius: 999px;
     letter-spacing: 0;
-    font-size: 0.85rem;
-    gap: 0.35rem;
+    font-size: 0.88rem;
+    gap: 0.4rem;
+    box-shadow: var(--shadow);
   }
 
   .toc-reopen-edge span {
@@ -1388,8 +1442,7 @@ watch(
     position: fixed;
     inset: 0;
     z-index: 75;
-    background: rgba(15, 23, 42, 0.35);
+    background: rgba(15, 23, 42, 0.45);
   }
 }
-
 </style>
