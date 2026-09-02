@@ -181,7 +181,7 @@
                   <h3 v-if="form.title.trim()">{{ form.title }}</h3>
                   <p v-if="form.excerpt.trim()" class="muted">{{ form.excerpt }}</p>
                 </header>
-                <div v-if="previewHtml" class="prose" v-html="previewHtml"></div>
+                <div v-if="previewHtml" ref="mdPreviewEl" class="prose" v-html="previewHtml"></div>
                 <p v-else class="muted md-preview-empty">{{ t('admin.previewEmpty') }}</p>
               </div>
             </div>
@@ -384,7 +384,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   createPost,
   deletePost,
@@ -403,6 +403,7 @@ import RichTextEditor from '../components/RichTextEditor.vue'
 import { compressImageFile } from '../utils/avatar.js'
 import { isHtmlContent, markdownToHtml, renderPostContent } from '../utils/contentFormat.js'
 import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.js'
+import { renderMermaidBlocks } from '../utils/mermaidBlocks.js'
 
 const { t } = useLocale()
 
@@ -461,6 +462,18 @@ const previewHtml = computed(() => {
   if (contentMode.value !== 'markdown') return ''
   return renderPostContent(form.content)
 })
+
+const mdPreviewEl = ref(null)
+
+watch(
+  [previewHtml, mdPane],
+  async () => {
+    if (contentMode.value !== 'markdown' || mdPane.value === 'edit') return
+    await nextTick()
+    await renderMermaidBlocks(mdPreviewEl.value)
+  },
+  { flush: 'post' },
+)
 
 function applyUser(nextUser) {
   user.value = nextUser

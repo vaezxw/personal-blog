@@ -853,6 +853,19 @@ h2 {
   color: #f9fafb;
 }
 
+.prose pre.mermaid {
+  background: transparent;
+  color: inherit;
+  padding: 0.5rem 0;
+  border-radius: 0;
+  text-align: center;
+}
+
+.prose pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .prose img {
   max-width: 100%;
   height: auto;

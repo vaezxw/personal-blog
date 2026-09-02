@@ -105,7 +105,7 @@
       </p>
     </div>
 
-    <div class="prose" v-html="renderedHtml"></div>
+    <div ref="proseEl" class="prose" v-html="renderedHtml"></div>
 
     <section id="comments" class="comments panel" :class="{ flash: highlightTarget === 'comments' }">
       <h2>{{ t('post.comments') }}</h2>
@@ -274,6 +274,7 @@ import {
 import { useLocale } from '../composables/useLocale.js'
 import EmojiPicker from '../components/EmojiPicker.vue'
 import { renderPostContent } from '../utils/contentFormat.js'
+import { renderMermaidBlocks } from '../utils/mermaidBlocks.js'
 import {
   canUseNativeShare,
   copyText,
@@ -390,6 +391,17 @@ const renderedHtml = computed(() => {
   if (!post.value) return ''
   return renderPostContent(post.value.content || '')
 })
+
+const proseEl = ref(null)
+
+watch(
+  renderedHtml,
+  async () => {
+    await nextTick()
+    await renderMermaidBlocks(proseEl.value)
+  },
+  { flush: 'post' },
+)
 
 const authorLetter = computed(() =>
   (post.value?.authorUsername || '?').slice(0, 1).toUpperCase(),

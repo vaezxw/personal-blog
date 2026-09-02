@@ -12,6 +12,11 @@ function normalizeMarkdown(md) {
     .replace(/^\uFEFF/, '')
     .replace(/\u00a0/g, ' ')
     .replace(/\r\n?/g, '\n')
+    // 语雀流程图：注释里的 --> 会截断注释，保留 CDN SVG
+    .replace(
+      /<!--\s*这是一个文本绘图[\s\S]*?!\[\]\((https:\/\/cdn\.nlark\.com\/yuque\/__mermaid[^)\s]+)\)/g,
+      '\n\n![]($1)\n\n',
+    )
 }
 
 /** 判断正文是否为 HTML（wangEditor 等） */
