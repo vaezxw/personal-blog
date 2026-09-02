@@ -1,5 +1,5 @@
 <template>
-  <div class="rte" :class="{ 'rte--dark': isDark }">
+  <div class="rte">
     <div class="rte-toolbar-wrap">
       <Toolbar
         :editor="editorRef"
@@ -24,7 +24,6 @@ import '@wangeditor/editor/dist/css/style.css'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { uploadImage } from '../api.js'
-import { useTheme } from '../composables/useTheme.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -34,7 +33,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const { isDark } = useTheme()
 const editorRef = shallowRef()
 
 const toolbarConfig = {
@@ -107,30 +105,5 @@ onBeforeUnmount(() => {
 .rte-body-wrap :deep(.w-e-text-placeholder) {
   color: var(--muted);
   font-style: normal;
-}
-
-.rte--dark :deep(.w-e-toolbar) {
-  background: color-mix(in srgb, var(--input-bg) 92%, #000);
-  border-color: var(--line);
-}
-
-.rte--dark :deep(.w-e-bar-item button) {
-  color: var(--ink);
-}
-
-.rte--dark :deep(.w-e-bar-item button:hover) {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-.rte--dark :deep(.w-e-bar-divider) {
-  background: var(--line);
-}
-
-.rte--dark :deep(.w-e-drop-panel),
-.rte--dark :deep(.w-e-panel-content-color),
-.rte--dark :deep(.w-e-panel-content-emotion) {
-  background: var(--input-bg);
-  border-color: var(--line);
-  color: var(--ink);
 }
 </style>

@@ -57,6 +57,81 @@ html.dark {
   --body-base-1: #0b1220;
   --body-base-2: #0f172a;
   color-scheme: dark;
+
+  /* wangEditor: inherit site tokens so body-appended panels match dark theme */
+  --w-e-textarea-bg-color: var(--input-bg);
+  --w-e-textarea-color: var(--ink);
+  --w-e-textarea-border-color: var(--line);
+  --w-e-textarea-slight-border-color: var(--line);
+  --w-e-textarea-slight-color: var(--muted);
+  --w-e-textarea-slight-bg-color: color-mix(in srgb, var(--input-bg) 88%, #fff);
+  --w-e-textarea-selected-border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  --w-e-textarea-handler-bg-color: var(--accent);
+  --w-e-toolbar-color: var(--muted);
+  --w-e-toolbar-bg-color: var(--input-bg);
+  --w-e-toolbar-active-color: var(--ink);
+  --w-e-toolbar-active-bg-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  --w-e-toolbar-disabled-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  --w-e-toolbar-border-color: var(--line);
+  --w-e-modal-button-bg-color: color-mix(in srgb, var(--input-bg) 92%, #fff);
+  --w-e-modal-button-border-color: var(--line);
+}
+
+/* wangEditor dropdowns/modals append to body — target globally under dark theme */
+html.dark .w-e-bar-item-menus-container,
+html.dark .w-e-select-list,
+html.dark .w-e-panel-container,
+html.dark .w-e-drop-panel,
+html.dark .w-e-textarea-container,
+html.dark .w-e-modal,
+html.dark .w-e-panel-content-color,
+html.dark .w-e-panel-content-emotion,
+html.dark .w-e-panel-tab-content,
+html.dark .w-e-panel-content-table,
+html.dark .w-e-panel-content-link,
+html.dark .w-e-panel-content-video {
+  background-color: var(--input-bg);
+  color: var(--ink);
+  border-color: var(--line);
+  color-scheme: dark;
+}
+
+html.dark .w-e-select-list ul li,
+html.dark .w-e-bar-item-menus-container .w-e-bar-item button {
+  color: var(--ink);
+}
+
+html.dark .w-e-select-list ul li:hover,
+html.dark .w-e-bar-item-menus-container .w-e-bar-item button:hover {
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+html.dark .w-e-select-list ul li.selected {
+  background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--ink);
+}
+
+html.dark .w-e-modal input,
+html.dark .w-e-modal textarea,
+html.dark .w-e-panel-container input,
+html.dark .w-e-panel-container textarea,
+html.dark .w-e-panel-container select {
+  background: color-mix(in srgb, var(--input-bg) 92%, #000);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html.dark .w-e-modal button,
+html.dark .w-e-panel-container button {
+  background: color-mix(in srgb, var(--input-bg) 92%, #fff);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html.dark .w-e-modal button:hover,
+html.dark .w-e-panel-container button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
 }
 
 * {
