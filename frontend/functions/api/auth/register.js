@@ -1,6 +1,7 @@
 import { hashPassword, newId } from '../_lib/crypto.js'
 import { publicUser } from '../_lib/auth.js'
 import { createSession } from '../_lib/session.js'
+import { isDeliverableEmail } from '../_lib/smtp.js'
 import { empty, json, jsonWithSetCookies, readJson } from '../_lib/response.js'
 
 export async function onRequest(context) {
@@ -11,14 +12,14 @@ export async function onRequest(context) {
 
   try {
     const body = await readJson(request)
-    const email = String(body.email || '').trim().toLowerCase()
+    const emailRaw = String(body.email || '').trim().toLowerCase()
     const username = String(body.username || '').trim()
     const password = String(body.password || '')
 
-    if (!email || !username || !password) {
-      return json(400, { error: 'email, username and password are required' })
+    if (!username || !password) {
+      return json(400, { error: 'username and password are required' })
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (emailRaw && !isDeliverableEmail(emailRaw)) {
       return json(400, { error: 'Invalid email' })
     }
     if (username.length < 2 || username.length > 32) {
@@ -32,6 +33,8 @@ export async function onRequest(context) {
     const isFirst = Number(countRow?.c || 0) === 0
     const role = isFirst ? 'admin' : 'author'
     const id = newId('u')
+    // 未填邮箱：占位地址，邮件推送会跳过（isDeliverableEmail = false）
+    const email = emailRaw || `none.${id}@noreply.invalid`
     const passwordHash = await hashPassword(password)
     const createdAt = new Date().toISOString()
 
@@ -50,9 +53,12 @@ export async function onRequest(context) {
       throw err
     }
 
-    const user = { id, email, username, role, created_at: createdAt }
+    const publicEmail = isDeliverableEmail(email) ? email : null
+    const user = { id, email: publicEmail || email, username, role, created_at: createdAt }
     const session = await createSession(env, user, request)
-    return jsonWithSetCookies(201, { user: publicUser(user) }, session.cookieHeaders)
+    const pub = publicUser(user)
+    if (!isDeliverableEmail(email)) pub.email = null
+    return jsonWithSetCookies(201, { user: pub }, session.cookieHeaders)
   } catch (err) {
     return json(500, { error: err.message || 'Server error' })
   }

@@ -8,6 +8,13 @@ database_name = "mohhen-blog-db"
 database_id = "3fb3a441-643c-4668-b440-7a3a100c277d"
 preview_database_id = "DB"
 
+[vars]
+SITE_ORIGIN = "https://mohhen-blog.pages.dev"
+SMTP_HOST = "smtp.qq.com"
+SMTP_PORT = "465"
+SMTP_FROM_NAME = "墨痕"
+# SMTP_USER / SMTP_PASS / EMAIL_CRON_SECRET：Pages 控制台 Encrypted，勿写入仓库
+
 # 在 Cloudflare 控制台启用 R2 并创建 mohhen-blog-media 后取消注释：
 # [[r2_buckets]]
 # binding = "MEDIA"

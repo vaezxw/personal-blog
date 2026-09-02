@@ -80,11 +80,10 @@
       </form>
 
       <form v-else class="auth-form" @submit.prevent="doRegister">
-        <label>{{ t('admin.email') }}</label>
+        <label>{{ t('admin.email') }} <span class="muted">{{ t('admin.emailOptional') }}</span></label>
         <input
           v-model="auth.email"
           type="email"
-          required
           autocomplete="email"
           :placeholder="t('admin.emailPlaceholder')"
         />

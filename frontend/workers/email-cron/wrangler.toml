@@ -1,0 +1,10 @@
+name = "mohhen-email-cron"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[triggers]
+crons = [ "*/5 * * * *" ]
+
+[vars]
+SITE_ORIGIN = "https://mohhen-blog.pages.dev"
+# EMAIL_CRON_SECRET via: npx wrangler secret put EMAIL_CRON_SECRET

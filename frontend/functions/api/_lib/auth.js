@@ -1,6 +1,7 @@
 import { verifyJwt } from './crypto.js'
 import { getCookie, ACCESS_COOKIE } from './cookies.js'
 import { json } from './response.js'
+import { isDeliverableEmail } from './smtp.js'
 
 export function getJwtSecret(env) {
   return env?.JWT_SECRET || 'dev-jwt-secret-change-me'
@@ -14,9 +15,10 @@ export function getBearerToken(request) {
 
 export function publicUser(row) {
   if (!row) return null
+  const email = isDeliverableEmail(row.email) ? row.email : null
   return {
     id: row.id,
-    email: row.email,
+    email,
     username: row.username,
     role: row.role,
     createdAt: row.created_at,
