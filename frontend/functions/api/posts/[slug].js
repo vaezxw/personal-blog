@@ -112,6 +112,7 @@ export async function onRequest(context) {
 
   if (request.method === 'DELETE') {
     await env.DB.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(param).run()
+    await env.DB.prepare('DELETE FROM post_favorites WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM notifications WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM comments WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(param).run()

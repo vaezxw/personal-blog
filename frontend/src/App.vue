@@ -8,6 +8,12 @@
           <RouterLink to="/about">{{ t('nav.about') }}</RouterLink>
           <RouterLink to="/tools">{{ t('nav.tools') }}</RouterLink>
           <RouterLink v-if="currentUser" to="/messages">{{ t('nav.messages') }}</RouterLink>
+          <RouterLink
+            v-if="currentUser"
+            :to="{ name: 'user-library', params: { username: currentUser.username } }"
+          >
+            {{ t('nav.library') }}
+          </RouterLink>
           <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">

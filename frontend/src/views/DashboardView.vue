@@ -135,6 +135,7 @@
               <th>{{ t('dash.colTitle') }}</th>
               <th>{{ t('admin.statsViews') }}</th>
               <th>{{ t('admin.statsLikes') }}</th>
+              <th>{{ t('admin.statsFavorites') }}</th>
               <th>{{ t('admin.statsComments') }}</th>
               <th>{{ t('admin.statsHeat') }}</th>
             </tr>
@@ -146,6 +147,7 @@
               </td>
               <td class="mono">{{ p.views }}</td>
               <td class="mono">{{ p.likes }}</td>
+              <td class="mono">{{ p.favorites || 0 }}</td>
               <td class="mono">{{ p.comments }}</td>
               <td class="mono heat">{{ p.heat }}</td>
             </tr>
@@ -287,6 +289,7 @@ const kpis = computed(() => {
     { key: 'heat', label: t('admin.statsHeat'), value: s.heat || 0, color: '#2dd4bf' },
     { key: 'views', label: t('admin.statsViews'), value: s.viewCount || 0, color: '#38bdf8' },
     { key: 'likes', label: t('admin.statsLikes'), value: s.likeCount || 0, color: '#fb7185' },
+    { key: 'favorites', label: t('admin.statsFavorites'), value: s.favoriteCount || 0, color: '#f59e0b' },
     { key: 'comments', label: t('admin.statsComments'), value: s.commentCount || 0, color: '#a78bfa' },
     { key: 'posts', label: t('admin.statsPosts'), value: s.postCount || 0, color: '#34d399' },
     { key: 'followers', label: t('user.followers'), value: s.followerCount || 0, color: '#fbbf24' },
@@ -346,6 +349,16 @@ function renderCharts() {
             borderWidth: 2,
           },
           {
+            label: t('admin.statsFavorites'),
+            data: (series.favorites30d || []).map((x) => x.value),
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.14)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            borderWidth: 2,
+          },
+          {
             label: t('admin.statsComments'),
             data: series.comments30d.map((x) => x.value),
             borderColor: '#2dd4bf',
@@ -397,6 +410,7 @@ function renderCharts() {
     const mixLabels = {
       views: t('admin.statsViews'),
       likes: t('admin.statsLikes'),
+      favorites: t('admin.statsFavorites'),
       comments: t('admin.statsComments'),
       clicks: t('admin.statsClicks'),
     }
@@ -407,7 +421,7 @@ function renderCharts() {
         datasets: [
           {
             data: series.mix.map((x) => x.value),
-            backgroundColor: ['#38bdf8', '#fb7185', '#a78bfa', '#34d399'],
+            backgroundColor: ['#38bdf8', '#fb7185', '#f59e0b', '#a78bfa', '#34d399'],
             borderWidth: 0,
             hoverOffset: 6,
           },

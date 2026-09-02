@@ -38,6 +38,16 @@
         <span aria-hidden="true">{{ post.likedByMe ? '♥' : '♡' }}</span>
         {{ t('post.likes', { count: post.likeCount || 0 }) }}
       </button>
+      <button
+        type="button"
+        class="like-btn favorite-btn"
+        :class="{ active: post.favoritedByMe, busy: favoriteBusy }"
+        :disabled="favoriteBusy"
+        @click="onFavorite"
+      >
+        <span aria-hidden="true">{{ post.favoritedByMe ? '★' : '☆' }}</span>
+        {{ t('post.favorites', { count: post.favoriteCount || 0 }) }}
+      </button>
       <div class="share-wrap" ref="shareWrapRef">
         <button
           type="button"
@@ -89,6 +99,9 @@
       </div>
       <p v-if="likeHint" class="muted like-hint">
         <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('post.loginToLike') }}
+      </p>
+      <p v-else-if="favoriteHint" class="muted like-hint">
+        <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('post.loginToFavorite') }}
       </p>
     </div>
 
@@ -255,6 +268,7 @@ import {
   me,
   recordPostView,
   shouldCountUniqueView,
+  togglePostFavorite,
   togglePostLike,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
@@ -291,6 +305,8 @@ const commentFormError = ref('')
 const replyTarget = ref(null)
 const likeBusy = ref(false)
 const likeHint = ref(false)
+const favoriteBusy = ref(false)
+const favoriteHint = ref(false)
 const shareOpen = ref(false)
 const shareHint = ref('')
 const shareOk = ref(false)
@@ -480,6 +496,7 @@ async function scrollToHashTarget() {
 
 async function onLike() {
   likeHint.value = false
+  favoriteHint.value = false
   if (!currentUser.value) {
     likeHint.value = true
     return
@@ -504,6 +521,37 @@ async function onLike() {
     }
   } finally {
     likeBusy.value = false
+  }
+}
+
+async function onFavorite() {
+  likeHint.value = false
+  favoriteHint.value = false
+  if (!currentUser.value) {
+    favoriteHint.value = true
+    return
+  }
+  favoriteBusy.value = true
+  try {
+    const data = await togglePostFavorite(props.slug)
+    if (post.value) {
+      post.value = {
+        ...post.value,
+        favoritedByMe: data.favoritedByMe,
+        favoriteCount: data.favoriteCount,
+        likeCount: data.likeCount ?? post.value.likeCount,
+        viewCount: data.viewCount ?? post.value.viewCount,
+        commentCount: data.commentCount ?? post.value.commentCount,
+        heat: data.heat,
+      }
+    }
+  } catch (err) {
+    if (String(err.message || '').includes('Unauthorized')) {
+      favoriteHint.value = true
+      currentUser.value = null
+    }
+  } finally {
+    favoriteBusy.value = false
   }
 }
 

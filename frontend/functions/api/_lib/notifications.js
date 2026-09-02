@@ -1,7 +1,12 @@
 import { newId } from './crypto.js'
 
-export function heatScore({ viewCount = 0, likeCount = 0, commentCount = 0 }) {
-  return Number(viewCount) + Number(likeCount) * 5 + Number(commentCount) * 3
+export function heatScore({ viewCount = 0, likeCount = 0, commentCount = 0, favoriteCount = 0 }) {
+  return (
+    Number(viewCount) +
+    Number(likeCount) * 5 +
+    Number(commentCount) * 3 +
+    Number(favoriteCount) * 4
+  )
 }
 
 export async function createNotification(db, { userId, actorId, type, postId = null, commentId = null }) {

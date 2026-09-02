@@ -50,6 +50,12 @@
         >
           {{ t('dash.open') }}
         </RouterLink>
+        <RouterLink
+          class="btn ghost"
+          :to="{ name: 'user-library', params: { username: profile.username } }"
+        >
+          {{ t('library.open') }}
+        </RouterLink>
         <p v-if="followHint" class="muted follow-hint">
           <RouterLink to="/admin">{{ t('post.login') }}</RouterLink>{{ t('user.loginToFollow') }}
         </p>

@@ -147,6 +147,17 @@ export function togglePostLike(slug) {
   })
 }
 
+export function togglePostFavorite(slug) {
+  return request(`/api/posts/${encodeURIComponent(slug)}/favorite`, {
+    method: 'POST',
+  })
+}
+
+export function fetchUserLibrary(username, tab) {
+  const q = tab ? `?tab=${encodeURIComponent(tab)}` : ''
+  return request(`/api/users/${encodeURIComponent(username)}/library${q}`)
+}
+
 export function fetchNotifications() {
   return request('/api/notifications')
 }

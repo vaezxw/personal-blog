@@ -18,6 +18,12 @@ const router = createRouter({
       component: DashboardView,
       props: true,
     },
+    {
+      path: '/u/:username/library',
+      name: 'user-library',
+      component: () => import('../views/LibraryView.vue'),
+      props: true,
+    },
     { path: '/about', name: 'about', component: AboutView },
     { path: '/tools', name: 'tools', component: () => import('../views/ToolsView.vue') },
     {

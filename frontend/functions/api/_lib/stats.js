@@ -31,30 +31,43 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
   const commentMap = await getCommentCountsForPosts(db, ids)
 
   let likedSet = new Set()
+  let favoritedSet = new Set()
   if (userId) {
     const placeholders = ids.map(() => '?').join(',')
-    const { results } = await db
-      .prepare(
-        `SELECT post_id FROM post_likes WHERE user_id = ? AND post_id IN (${placeholders})`,
-      )
-      .bind(userId, ...ids)
-      .all()
-    likedSet = new Set((results || []).map((r) => r.post_id))
+    const [likeRes, favRes] = await Promise.all([
+      db
+        .prepare(
+          `SELECT post_id FROM post_likes WHERE user_id = ? AND post_id IN (${placeholders})`,
+        )
+        .bind(userId, ...ids)
+        .all(),
+      db
+        .prepare(
+          `SELECT post_id FROM post_favorites WHERE user_id = ? AND post_id IN (${placeholders})`,
+        )
+        .bind(userId, ...ids)
+        .all(),
+    ])
+    likedSet = new Set((likeRes.results || []).map((r) => r.post_id))
+    favoritedSet = new Set((favRes.results || []).map((r) => r.post_id))
   }
 
   return posts.map((p) => {
     const viewCount = Number(p.viewCount || 0)
     const likeCount = Number(p.likeCount || 0)
+    const favoriteCount = Number(p.favoriteCount || 0)
     const clickCount = Number(p.clickCount || 0)
     const commentCount = commentMap[p.id] || 0
     return {
       ...p,
       viewCount,
       likeCount,
+      favoriteCount,
       clickCount,
       commentCount,
-      heat: heatScore({ viewCount, likeCount, commentCount }),
+      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
       likedByMe: likedSet.has(p.id),
+      favoritedByMe: favoritedSet.has(p.id),
     }
   })
 }
@@ -66,7 +79,8 @@ export async function getUserStats(db, userId) {
          COUNT(*) AS post_count,
          COALESCE(SUM(view_count), 0) AS view_count,
          COALESCE(SUM(click_count), 0) AS click_count,
-         COALESCE(SUM(like_count), 0) AS like_count
+         COALESCE(SUM(like_count), 0) AS like_count,
+         COALESCE(SUM(favorite_count), 0) AS favorite_count
        FROM posts
        WHERE author_id = ?`,
     )
@@ -85,7 +99,8 @@ export async function getUserStats(db, userId) {
 
   const { results } = await db
     .prepare(
-      `SELECT p.id, p.title, p.slug, p.published, p.view_count, p.like_count, p.click_count, p.created_at,
+      `SELECT p.id, p.title, p.slug, p.published, p.view_count, p.like_count, p.favorite_count,
+              p.click_count, p.created_at,
               (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
        FROM posts p
        WHERE p.author_id = ?
@@ -97,6 +112,7 @@ export async function getUserStats(db, userId) {
   const posts = (results || []).map((row) => {
     const viewCount = Number(row.view_count || 0)
     const likeCount = Number(row.like_count || 0)
+    const favoriteCount = Number(row.favorite_count || 0)
     const clickCount = Number(row.click_count || 0)
     const commentCount = Number(row.comment_count || 0)
     return {
@@ -106,9 +122,10 @@ export async function getUserStats(db, userId) {
       published: Boolean(row.published),
       viewCount,
       likeCount,
+      favoriteCount,
       clickCount,
       commentCount,
-      heat: heatScore({ viewCount, likeCount, commentCount }),
+      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
       createdAt: row.created_at,
     }
   })
@@ -117,6 +134,7 @@ export async function getUserStats(db, userId) {
   const viewCount = Number(agg?.view_count || 0)
   const clickCount = Number(agg?.click_count || 0)
   const likeCount = Number(agg?.like_count || 0)
+  const favoriteCount = Number(agg?.favorite_count || 0)
   const commentCount = Number(commentAgg?.comment_count || 0)
 
   return {
@@ -124,8 +142,9 @@ export async function getUserStats(db, userId) {
     viewCount,
     clickCount,
     likeCount,
+    favoriteCount,
     commentCount,
-    heat: heatScore({ viewCount, likeCount, commentCount }),
+    heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
     posts,
   }
 }

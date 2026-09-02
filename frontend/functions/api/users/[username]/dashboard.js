@@ -105,6 +105,16 @@ export async function onRequest(context) {
     .bind(row.id)
     .all()
 
+  const { results: favoriteRows } = await env.DB.prepare(
+    `SELECT pf.created_at AS created_at
+     FROM post_favorites pf
+     JOIN posts p ON p.id = pf.post_id
+     WHERE p.author_id = ?
+       AND pf.created_at >= date('now', '-30 days')`,
+  )
+    .bind(row.id)
+    .all()
+
   const { results: commentRows } = await env.DB.prepare(
     `SELECT c.created_at AS created_at
      FROM comments c
@@ -127,6 +137,11 @@ export async function onRequest(context) {
   for (const r of likeRows || []) {
     const k = dayKey(r.created_at)
     if (k) likeMap[k] = (likeMap[k] || 0) + 1
+  }
+  const favoriteMap = Object.create(null)
+  for (const r of favoriteRows || []) {
+    const k = dayKey(r.created_at)
+    if (k) favoriteMap[k] = (favoriteMap[k] || 0) + 1
   }
   const commentMap = Object.create(null)
   for (const r of commentRows || []) {
@@ -159,6 +174,7 @@ export async function onRequest(context) {
       slug: p.slug,
       views: p.viewCount,
       likes: p.likeCount,
+      favorites: p.favoriteCount,
       comments: p.commentCount,
       heat: p.heat,
     }))
@@ -178,6 +194,7 @@ export async function onRequest(context) {
       viewCount: stats.viewCount,
       clickCount: stats.clickCount,
       likeCount: stats.likeCount,
+      favoriteCount: stats.favoriteCount,
       commentCount: stats.commentCount,
       heat: stats.heat,
       followerCount: followCounts.followerCount,
@@ -185,6 +202,7 @@ export async function onRequest(context) {
     },
     series: {
       likes30d: fillDays(likeMap, 30),
+      favorites30d: fillDays(favoriteMap, 30),
       comments30d: fillDays(commentMap, 30),
       followers30d: fillDays(followMap, 30),
       postsByMonth: fillMonths(monthMap, 8),
@@ -193,6 +211,7 @@ export async function onRequest(context) {
       mix: [
         { key: 'views', value: stats.viewCount },
         { key: 'likes', value: stats.likeCount },
+        { key: 'favorites', value: stats.favoriteCount },
         { key: 'comments', value: stats.commentCount },
         { key: 'clicks', value: stats.clickCount },
       ],

@@ -164,6 +164,12 @@
             >
               {{ t('dash.open') }} →
             </RouterLink>
+            <RouterLink
+              class="profile-link"
+              :to="{ name: 'user-library', params: { username: user.username } }"
+            >
+              {{ t('library.open') }} →
+            </RouterLink>
           </div>
         </div>
         <button class="btn ghost" type="button" @click="doLogout">{{ t('admin.logout') }}</button>
@@ -378,6 +384,10 @@
             <span class="stat-label">{{ t('admin.statsLikes') }}</span>
           </div>
           <div class="stat-card">
+            <span class="stat-value mono">{{ stats.favoriteCount || 0 }}</span>
+            <span class="stat-label">{{ t('admin.statsFavorites') }}</span>
+          </div>
+          <div class="stat-card">
             <span class="stat-value mono">{{ stats.commentCount }}</span>
             <span class="stat-label">{{ t('admin.statsComments') }}</span>
           </div>
@@ -514,6 +524,7 @@ const stats = reactive({
   viewCount: 0,
   clickCount: 0,
   likeCount: 0,
+  favoriteCount: 0,
   commentCount: 0,
   heat: 0,
 })
@@ -565,6 +576,7 @@ async function loadStats() {
     stats.viewCount = data.viewCount || 0
     stats.clickCount = data.clickCount || 0
     stats.likeCount = data.likeCount || 0
+    stats.favoriteCount = data.favoriteCount || 0
     stats.commentCount = data.commentCount || 0
     stats.heat = data.heat || 0
   } catch (err) {
@@ -733,6 +745,7 @@ async function doLogout() {
   stats.viewCount = 0
   stats.clickCount = 0
   stats.likeCount = 0
+  stats.favoriteCount = 0
   stats.commentCount = 0
   stats.heat = 0
   resetForm()
