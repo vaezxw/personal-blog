@@ -251,11 +251,23 @@ textarea:focus-visible {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-family: var(--font-display);
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-decoration: none;
+  color: inherit;
+}
+
+.brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  flex-shrink: 0;
+  display: block;
 }
 
 .nav {

@@ -1,7 +1,10 @@
 <template>
   <div class="shell">
     <header class="site-header">
-      <RouterLink class="brand" to="/">{{ t('home.title') }}</RouterLink>
+      <RouterLink class="brand" to="/">
+        <img class="brand-mark" src="/logo-mark.svg" width="32" height="32" alt="" />
+        <span>{{ t('home.title') }}</span>
+      </RouterLink>
       <div class="header-right">
         <nav class="nav">
           <RouterLink to="/">{{ t('nav.posts') }}</RouterLink>
