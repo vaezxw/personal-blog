@@ -164,19 +164,37 @@ export async function enrichPosts(db, posts, { userId = null, lean = false } = {
 }
 
 export async function getUserStats(db, userId) {
-  const agg = await db
-    .prepare(
-      `SELECT
-         COUNT(*) AS post_count,
-         COALESCE(SUM(view_count), 0) AS view_count,
-         COALESCE(SUM(click_count), 0) AS click_count,
-         COALESCE(SUM(like_count), 0) AS like_count,
-         COALESCE(SUM(favorite_count), 0) AS favorite_count
-       FROM posts
-       WHERE author_id = ?`,
-    )
-    .bind(userId)
-    .first()
+  let agg
+  try {
+    agg = await db
+      .prepare(
+        `SELECT
+           COUNT(*) AS post_count,
+           COALESCE(SUM(view_count), 0) AS view_count,
+           COALESCE(SUM(click_count), 0) AS click_count,
+           COALESCE(SUM(like_count), 0) AS like_count,
+           COALESCE(SUM(dislike_count), 0) AS dislike_count,
+           COALESCE(SUM(favorite_count), 0) AS favorite_count
+         FROM posts
+         WHERE author_id = ?`,
+      )
+      .bind(userId)
+      .first()
+  } catch {
+    agg = await db
+      .prepare(
+        `SELECT
+           COUNT(*) AS post_count,
+           COALESCE(SUM(view_count), 0) AS view_count,
+           COALESCE(SUM(click_count), 0) AS click_count,
+           COALESCE(SUM(like_count), 0) AS like_count,
+           COALESCE(SUM(favorite_count), 0) AS favorite_count
+         FROM posts
+         WHERE author_id = ?`,
+      )
+      .bind(userId)
+      .first()
+  }
 
   const commentAgg = await db
     .prepare(
@@ -188,21 +206,39 @@ export async function getUserStats(db, userId) {
     .bind(userId)
     .first()
 
-  const { results } = await db
-    .prepare(
-      `SELECT p.id, p.title, p.slug, p.published, p.view_count, p.like_count, p.favorite_count,
-              p.click_count, p.created_at,
-              (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
-       FROM posts p
-       WHERE p.author_id = ?
-       ORDER BY p.created_at DESC`,
-    )
-    .bind(userId)
-    .all()
+  let results = []
+  try {
+    const res = await db
+      .prepare(
+        `SELECT p.id, p.title, p.slug, p.published, p.view_count, p.like_count, p.dislike_count,
+                p.favorite_count, p.click_count, p.created_at,
+                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
+         FROM posts p
+         WHERE p.author_id = ?
+         ORDER BY p.created_at DESC`,
+      )
+      .bind(userId)
+      .all()
+    results = res.results || []
+  } catch {
+    const res = await db
+      .prepare(
+        `SELECT p.id, p.title, p.slug, p.published, p.view_count, p.like_count, p.favorite_count,
+                p.click_count, p.created_at,
+                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
+         FROM posts p
+         WHERE p.author_id = ?
+         ORDER BY p.created_at DESC`,
+      )
+      .bind(userId)
+      .all()
+    results = res.results || []
+  }
 
-  const posts = (results || []).map((row) => {
+  const posts = results.map((row) => {
     const viewCount = Number(row.view_count || 0)
     const likeCount = Number(row.like_count || 0)
+    const dislikeCount = Number(row.dislike_count || 0)
     const favoriteCount = Number(row.favorite_count || 0)
     const clickCount = Number(row.click_count || 0)
     const commentCount = Number(row.comment_count || 0)
@@ -213,10 +249,11 @@ export async function getUserStats(db, userId) {
       published: Boolean(row.published),
       viewCount,
       likeCount,
+      dislikeCount,
       favoriteCount,
       clickCount,
       commentCount,
-      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
+      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount, dislikeCount }),
       createdAt: row.created_at,
     }
   })
@@ -225,6 +262,7 @@ export async function getUserStats(db, userId) {
   const viewCount = Number(agg?.view_count || 0)
   const clickCount = Number(agg?.click_count || 0)
   const likeCount = Number(agg?.like_count || 0)
+  const dislikeCount = Number(agg?.dislike_count || 0)
   const favoriteCount = Number(agg?.favorite_count || 0)
   const commentCount = Number(commentAgg?.comment_count || 0)
 
@@ -233,9 +271,10 @@ export async function getUserStats(db, userId) {
     viewCount,
     clickCount,
     likeCount,
+    dislikeCount,
     favoriteCount,
     commentCount,
-    heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
+    heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount, dislikeCount }),
     posts,
   }
 }

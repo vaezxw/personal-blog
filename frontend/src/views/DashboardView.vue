@@ -30,6 +30,55 @@
       </div>
     </div>
 
+    <article class="panel analysis-panel" v-if="data.analysis">
+      <div class="chart-head">
+        <h2>{{ t('dash.analysisTitle') }}</h2>
+        <p class="muted">{{ t('dash.analysisLede') }}</p>
+      </div>
+      <div class="analysis-grid">
+        <div class="analysis-card">
+          <span class="analysis-label">{{ t('dash.analysisDislikeShare') }}</span>
+          <strong class="analysis-value mono">{{ pct(data.analysis.dislikeShare) }}</strong>
+          <span class="muted analysis-note">
+            {{ t('dash.analysisReactionTotal', { count: data.analysis.reactionTotal || 0 }) }}
+          </span>
+        </div>
+        <div class="analysis-card">
+          <span class="analysis-label">{{ t('dash.analysisRatio') }}</span>
+          <strong class="analysis-value mono">{{ ratioLabel(data.analysis.likeDislikeRatio) }}</strong>
+          <span class="muted analysis-note">{{ t('dash.analysisRatioHint') }}</span>
+        </div>
+        <div class="analysis-card">
+          <span class="analysis-label">{{ t('dash.analysis30d') }}</span>
+          <strong class="analysis-value mono">{{ pct(data.analysis.dislikeShare30d) }}</strong>
+          <span class="muted analysis-note">
+            {{
+              t('dash.analysis30dNote', {
+                likes: data.analysis.likes30dTotal || 0,
+                dislikes: data.analysis.dislikes30dTotal || 0,
+              })
+            }}
+          </span>
+        </div>
+        <div class="analysis-card sentiment" :class="sentimentClass">
+          <span class="analysis-label">{{ t('dash.analysisSentiment') }}</span>
+          <strong class="analysis-value">{{ sentimentLabel }}</strong>
+          <span class="muted analysis-note">{{ t('dash.analysisSentimentHint') }}</span>
+        </div>
+      </div>
+      <div v-if="data.analysis.topDisliked?.length" class="dislike-rank">
+        <h3>{{ t('dash.topDislikedTitle') }}</h3>
+        <ul>
+          <li v-for="p in data.analysis.topDisliked" :key="p.slug">
+            <RouterLink :to="{ name: 'post', params: { slug: p.slug } }">{{ p.title }}</RouterLink>
+            <span class="mono muted">
+              {{ t('dash.topDislikedMeta', { dislikes: p.dislikes, likes: p.likes }) }}
+            </span>
+          </li>
+        </ul>
+      </div>
+    </article>
+
     <article class="panel heat-panel" v-if="heatmapWeeks.length">
       <div class="chart-head">
         <h2>{{ t('dash.heatTitle') }}</h2>
@@ -135,6 +184,7 @@
               <th>{{ t('dash.colTitle') }}</th>
               <th>{{ t('admin.statsViews') }}</th>
               <th>{{ t('admin.statsLikes') }}</th>
+              <th>{{ t('admin.statsDislikes') }}</th>
               <th>{{ t('admin.statsFavorites') }}</th>
               <th>{{ t('admin.statsComments') }}</th>
               <th>{{ t('admin.statsHeat') }}</th>
@@ -147,6 +197,7 @@
               </td>
               <td class="mono">{{ p.views }}</td>
               <td class="mono">{{ p.likes }}</td>
+              <td class="mono dislike">{{ p.dislikes || 0 }}</td>
               <td class="mono">{{ p.favorites || 0 }}</td>
               <td class="mono">{{ p.comments }}</td>
               <td class="mono heat">{{ p.heat }}</td>
@@ -289,12 +340,37 @@ const kpis = computed(() => {
     { key: 'heat', label: t('admin.statsHeat'), value: s.heat || 0, color: '#2dd4bf' },
     { key: 'views', label: t('admin.statsViews'), value: s.viewCount || 0, color: '#38bdf8' },
     { key: 'likes', label: t('admin.statsLikes'), value: s.likeCount || 0, color: '#fb7185' },
+    { key: 'dislikes', label: t('admin.statsDislikes'), value: s.dislikeCount || 0, color: '#94a3b8' },
     { key: 'favorites', label: t('admin.statsFavorites'), value: s.favoriteCount || 0, color: '#f59e0b' },
     { key: 'comments', label: t('admin.statsComments'), value: s.commentCount || 0, color: '#a78bfa' },
     { key: 'posts', label: t('admin.statsPosts'), value: s.postCount || 0, color: '#34d399' },
     { key: 'followers', label: t('user.followers'), value: s.followerCount || 0, color: '#fbbf24' },
   ]
 })
+
+const sentimentClass = computed(() => {
+  const share = Number(data.value?.analysis?.dislikeShare || 0)
+  if (share >= 0.35) return 'bad'
+  if (share >= 0.15) return 'warn'
+  return 'good'
+})
+
+const sentimentLabel = computed(() => {
+  const share = Number(data.value?.analysis?.dislikeShare || 0)
+  if (!data.value?.analysis?.reactionTotal) return t('dash.sentimentNeutral')
+  if (share >= 0.35) return t('dash.sentimentLow')
+  if (share >= 0.15) return t('dash.sentimentMixed')
+  return t('dash.sentimentHigh')
+})
+
+function pct(n) {
+  return `${Math.round(Number(n || 0) * 1000) / 10}%`
+}
+
+function ratioLabel(ratio) {
+  if (ratio == null || !Number.isFinite(ratio)) return t('dash.ratioInfinite')
+  return `${Math.round(ratio * 10) / 10} : 1`
+}
 
 function formatNum(n) {
   return new Intl.NumberFormat(isEn.value ? 'en-US' : 'zh-CN').format(Number(n || 0))
@@ -343,6 +419,16 @@ function renderCharts() {
             data: series.likes30d.map((x) => x.value),
             borderColor: '#fb7185',
             backgroundColor: 'rgba(251,113,133,0.18)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            borderWidth: 2,
+          },
+          {
+            label: t('admin.statsDislikes'),
+            data: (series.dislikes30d || []).map((x) => x.value),
+            borderColor: '#94a3b8',
+            backgroundColor: 'rgba(148,163,184,0.12)',
             fill: true,
             tension: 0.35,
             pointRadius: 0,
@@ -410,6 +496,7 @@ function renderCharts() {
     const mixLabels = {
       views: t('admin.statsViews'),
       likes: t('admin.statsLikes'),
+      dislikes: t('admin.statsDislikes'),
       favorites: t('admin.statsFavorites'),
       comments: t('admin.statsComments'),
       clicks: t('admin.statsClicks'),
@@ -421,7 +508,7 @@ function renderCharts() {
         datasets: [
           {
             data: series.mix.map((x) => x.value),
-            backgroundColor: ['#38bdf8', '#fb7185', '#f59e0b', '#a78bfa', '#34d399'],
+            backgroundColor: ['#38bdf8', '#fb7185', '#94a3b8', '#f59e0b', '#a78bfa', '#34d399'],
             borderWidth: 0,
             hoverOffset: 6,
           },
@@ -622,9 +709,94 @@ onBeforeUnmount(destroyCharts)
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.7rem;
   margin-bottom: 1rem;
+}
+
+.kpi-card:nth-child(7) {
+  animation-delay: 0.24s;
+}
+.kpi-card:nth-child(8) {
+  animation-delay: 0.28s;
+}
+
+.analysis-panel {
+  margin-bottom: 0.85rem;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.analysis-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem;
+  background: var(--stat-bg);
+}
+
+.analysis-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.analysis-value {
+  display: block;
+  margin: 0.35rem 0 0.25rem;
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+
+.analysis-note {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.analysis-card.sentiment.good .analysis-value {
+  color: #34d399;
+}
+.analysis-card.sentiment.warn .analysis-value {
+  color: #f59e0b;
+}
+.analysis-card.sentiment.bad .analysis-value {
+  color: #fb7185;
+}
+
+.dislike-rank {
+  margin-top: 1rem;
+}
+
+.dislike-rank h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+}
+
+.dislike-rank ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dislike-rank li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 0.45rem 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.9rem;
+}
+
+td.dislike {
+  color: var(--muted);
 }
 
 .kpi-card {
@@ -893,8 +1065,9 @@ td.heat {
 }
 
 @media (max-width: 980px) {
-  .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .kpi-grid,
+  .analysis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .chart-grid {
@@ -903,7 +1076,8 @@ td.heat {
 }
 
 @media (max-width: 560px) {
-  .kpi-grid {
+  .kpi-grid,
+  .analysis-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

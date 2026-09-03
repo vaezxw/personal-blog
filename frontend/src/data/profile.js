@@ -15,7 +15,7 @@ const profileZh = {
     '参与设备生命周期、营收系统、智慧工单 App、三端合同签署等多线并行开发。',
     '擅长表单-heavy 业务、报表导出、PDF 预览签署、uni-app 跨端、浏览器兼容与 Jenkins 工程化落地。',
     '开源维护 uni-app 合同签署组件库，已发布 DCloud 插件市场（MIT 免费）。',
-    '业余维护本博客「墨痕」：Vue 3 + Cloudflare D1 + Pages Functions，国内可直连部署。',
+    '业余维护本博客「墨痕」：Vue 3 + Cloudflare 全栈（D1 / Pages / R2），社交互动与列表缓存优化。',
   ],
   highlights: [
     { label: '多项目并行', value: '6+ 产品线' },
@@ -41,7 +41,7 @@ const profileEn = {
     'Shipped in parallel across device lifecycle, revenue systems, field-work apps, and multi-end contract signing.',
     'Comfortable with form-heavy flows, report exports, PDF preview & signing, uni-app, browser quirks, and Jenkins-based delivery.',
     'Maintains an open-source uni-app contract-signing UI kit on the DCloud plugin market (MIT, free).',
-    'Side project “Mohhen”: Vue 3 + Cloudflare D1 + Pages Functions, reachable from mainland China.',
+    'Side project “Mohhen”: Vue 3 + Cloudflare stack (D1 / Pages / R2), social features, and list/cache perf work.',
   ],
   highlights: [
     { label: 'Parallel delivery', value: '6+ product lines' },
@@ -75,6 +75,8 @@ const techStackBase = [
   { id: 'mqtt', name: 'MQTT / IoT', category: 'iot', url: 'https://mqtt.org/', color: '#6366f1' },
   { id: 'd1', name: 'Cloudflare D1', category: 'infra', url: 'https://developers.cloudflare.com/d1/', color: '#f38020' },
   { id: 'pages', name: 'Pages Functions', category: 'infra', url: 'https://developers.cloudflare.com/pages/', color: '#f38020' },
+  { id: 'r2', name: 'Cloudflare R2', category: 'infra', url: 'https://developers.cloudflare.com/r2/', color: '#f38020' },
+  { id: 'chartjs', name: 'Chart.js', category: 'viz', url: 'https://www.chartjs.org/', color: '#ff6384' },
   { id: 'jenkins', name: 'Jenkins', category: 'ops', url: 'https://www.jenkins.io/', color: '#d33833' },
   { id: 'git', name: 'Git / GitLab', category: 'ops', url: 'https://about.gitlab.com/', color: '#fc6d26' },
   { id: 'scss', name: 'SCSS', category: 'style', url: 'https://sass-lang.com/', color: '#cc6699' },
@@ -90,24 +92,27 @@ const projectsBase = [
     period: '2026',
     url: 'https://mohhen-blog.pages.dev',
     repo: 'https://github.com/vaezxw/personal-blog',
-    tech: ['vue3', 'vite', 'd1', 'pages', 'js'],
+    tech: ['vue3', 'vite', 'd1', 'pages', 'r2', 'chartjs', 'js', 'sqlite'],
     zh: {
       name: '墨痕 · 个人博客',
-      summary: 'Vue 3 个人博客，Cloudflare D1 持久化，多用户 JWT + httpOnly Cookie，评论与国内外网部署实践。',
+      summary:
+        'Vue 3 + Vite 个人博客全栈：Cloudflare Pages Functions / D1 / R2，多用户社交、创作工作室与数据仪表盘。',
       bullets: [
-        'Pages Functions + D1 替代内存 API，支持注册登录与作者权限',
-        'Cloudflare Pages 国内直连，对比 Vercel 部署踩坑记录',
-        'Markdown 文章、管理后台、评论模块',
+        '技术栈：Vue 3 Composition API、Vite、Pages Functions、D1（SQLite）、R2 附件、JWT + httpOnly Cookie、Chart.js 仪表盘',
+        '产品能力：富文本/Markdown、评论与 @提及、点赞/点踩互斥、收藏、转载来源卡、互关私信分享、通知与邮件摘要',
+        '性能优化：列表接口瘦身与 lean enrich、文章/me/首页短 TTL 缓存与请求去重、KeepAlive 软刷新、转载 stash 秒开、发布后预热缓存',
+        '工程实践：D1 迁移演进、国内可直连 Cloudflare Pages、中英双语与主题切换',
       ],
     },
     en: {
       name: 'Mohhen · Personal Blog',
       summary:
-        'Vue 3 blog with Cloudflare D1, multi-user JWT + httpOnly cookies, comments, and China-friendly hosting.',
+        'Full-stack Vue 3 + Vite blog on Cloudflare Pages Functions / D1 / R2 — social features, studio, and analytics.',
       bullets: [
-        'Pages Functions + D1 replace in-memory APIs; auth and author roles',
-        'Cloudflare Pages for mainland access vs Vercel friction notes',
-        'Markdown posts, admin console, and comments',
+        'Stack: Vue 3 Composition API, Vite, Pages Functions, D1 (SQLite), R2 uploads, JWT + httpOnly cookies, Chart.js dashboard',
+        'Product: rich text/Markdown, comments & @mentions, like/dislike mutex, favorites, repost source cards, mutual-friend DMs, notifications + email digest',
+        'Perf: slim list APIs + lean enrich, short-TTL post/me/home caches with inflight dedupe, KeepAlive soft refresh, repost stash for instant compose, warm cache after publish',
+        'Ops: D1 migrations, China-reachable Cloudflare Pages, bilingual UI and theme toggle',
       ],
     },
   },

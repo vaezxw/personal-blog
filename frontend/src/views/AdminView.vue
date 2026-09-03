@@ -363,6 +363,10 @@
             <span class="stat-label">{{ t('admin.statsLikes') }}</span>
           </div>
           <div class="stat-card">
+            <span class="stat-value mono">{{ stats.dislikeCount || 0 }}</span>
+            <span class="stat-label">{{ t('admin.statsDislikes') }}</span>
+          </div>
+          <div class="stat-card">
             <span class="stat-value mono">{{ stats.favoriteCount || 0 }}</span>
             <span class="stat-label">{{ t('admin.statsFavorites') }}</span>
           </div>
@@ -511,6 +515,7 @@ const stats = reactive({
   viewCount: 0,
   clickCount: 0,
   likeCount: 0,
+  dislikeCount: 0,
   favoriteCount: 0,
   commentCount: 0,
   heat: 0,
@@ -583,6 +588,7 @@ async function loadStats() {
     stats.viewCount = data.viewCount || 0
     stats.clickCount = data.clickCount || 0
     stats.likeCount = data.likeCount || 0
+    stats.dislikeCount = data.dislikeCount || 0
     stats.favoriteCount = data.favoriteCount || 0
     stats.commentCount = data.commentCount || 0
     stats.heat = data.heat || 0
@@ -749,6 +755,7 @@ async function doLogout() {
   stats.viewCount = 0
   stats.clickCount = 0
   stats.likeCount = 0
+  stats.dislikeCount = 0
   stats.favoriteCount = 0
   stats.commentCount = 0
   stats.heat = 0

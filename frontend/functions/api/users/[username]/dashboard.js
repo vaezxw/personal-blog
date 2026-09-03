@@ -105,6 +105,22 @@ export async function onRequest(context) {
     .bind(row.id)
     .all()
 
+  let dislikeRows = []
+  try {
+    const res = await env.DB.prepare(
+      `SELECT pd.created_at AS created_at
+       FROM post_dislikes pd
+       JOIN posts p ON p.id = pd.post_id
+       WHERE p.author_id = ?
+         AND pd.created_at >= date('now', '-30 days')`,
+    )
+      .bind(row.id)
+      .all()
+    dislikeRows = res.results || []
+  } catch {
+    dislikeRows = []
+  }
+
   const { results: favoriteRows } = await env.DB.prepare(
     `SELECT pf.created_at AS created_at
      FROM post_favorites pf
@@ -137,6 +153,11 @@ export async function onRequest(context) {
   for (const r of likeRows || []) {
     const k = dayKey(r.created_at)
     if (k) likeMap[k] = (likeMap[k] || 0) + 1
+  }
+  const dislikeMap = Object.create(null)
+  for (const r of dislikeRows || []) {
+    const k = dayKey(r.created_at)
+    if (k) dislikeMap[k] = (dislikeMap[k] || 0) + 1
   }
   const favoriteMap = Object.create(null)
   for (const r of favoriteRows || []) {
@@ -174,13 +195,36 @@ export async function onRequest(context) {
       slug: p.slug,
       views: p.viewCount,
       likes: p.likeCount,
+      dislikes: p.dislikeCount || 0,
       favorites: p.favoriteCount,
       comments: p.commentCount,
       heat: p.heat,
     }))
 
+  const topDisliked = [...(stats.posts || [])]
+    .filter((p) => p.published && (p.dislikeCount || 0) > 0)
+    .sort((a, b) => (b.dislikeCount || 0) - (a.dislikeCount || 0) || b.heat - a.heat)
+    .slice(0, 5)
+    .map((p) => ({
+      title: p.title,
+      slug: p.slug,
+      likes: p.likeCount,
+      dislikes: p.dislikeCount || 0,
+      views: p.viewCount,
+      heat: p.heat,
+    }))
+
   const published = (stats.posts || []).filter((p) => p.published).length
   const drafts = Math.max(0, stats.postCount - published)
+
+  const likeCount = stats.likeCount || 0
+  const dislikeCount = stats.dislikeCount || 0
+  const reactionTotal = likeCount + dislikeCount
+  const likes30d = fillDays(likeMap, 30)
+  const dislikes30d = fillDays(dislikeMap, 30)
+  const likes30dTotal = likes30d.reduce((sum, x) => sum + x.value, 0)
+  const dislikes30dTotal = dislikes30d.reduce((sum, x) => sum + x.value, 0)
+  const reaction30d = likes30dTotal + dislikes30dTotal
 
   return json(200, {
     user: mapPublicUser(row, {
@@ -193,15 +237,28 @@ export async function onRequest(context) {
       drafts,
       viewCount: stats.viewCount,
       clickCount: stats.clickCount,
-      likeCount: stats.likeCount,
+      likeCount,
+      dislikeCount,
       favoriteCount: stats.favoriteCount,
       commentCount: stats.commentCount,
       heat: stats.heat,
       followerCount: followCounts.followerCount,
       followingCount: followCounts.followingCount,
     },
+    analysis: {
+      reactionTotal,
+      likeShare: reactionTotal ? likeCount / reactionTotal : 1,
+      dislikeShare: reactionTotal ? dislikeCount / reactionTotal : 0,
+      likeDislikeRatio: dislikeCount > 0 ? likeCount / dislikeCount : null,
+      likes30dTotal,
+      dislikes30dTotal,
+      reaction30d,
+      dislikeShare30d: reaction30d ? dislikes30dTotal / reaction30d : 0,
+      topDisliked,
+    },
     series: {
-      likes30d: fillDays(likeMap, 30),
+      likes30d,
+      dislikes30d,
       favorites30d: fillDays(favoriteMap, 30),
       comments30d: fillDays(commentMap, 30),
       followers30d: fillDays(followMap, 30),
@@ -210,7 +267,8 @@ export async function onRequest(context) {
       topPosts,
       mix: [
         { key: 'views', value: stats.viewCount },
-        { key: 'likes', value: stats.likeCount },
+        { key: 'likes', value: likeCount },
+        { key: 'dislikes', value: dislikeCount },
         { key: 'favorites', value: stats.favoriteCount },
         { key: 'comments', value: stats.commentCount },
         { key: 'clicks', value: stats.clickCount },
