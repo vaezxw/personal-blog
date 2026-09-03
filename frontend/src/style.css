@@ -729,8 +729,12 @@ h2 {
   max-height: min(62vh, 560px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 0.25rem;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.post-list::-webkit-scrollbar {
+  display: none;
 }
 
 .post-row {
@@ -1070,8 +1074,12 @@ h2 {
   max-height: min(62vh, 560px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 0.25rem;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-list::-webkit-scrollbar {
+  display: none;
 }
 
 .admin-list li {

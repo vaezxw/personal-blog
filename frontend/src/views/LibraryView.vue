@@ -187,8 +187,12 @@ watch(
   max-height: min(62vh, 560px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 0.25rem;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.library-list::-webkit-scrollbar {
+  display: none;
 }
 
 .post-row {
