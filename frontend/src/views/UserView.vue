@@ -168,8 +168,12 @@
   <p v-else class="error">{{ error || t('user.missing') }}</p>
 </template>
 
+<script>
+export default { name: 'UserView' }
+</script>
+
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   fetchFollowers,
@@ -188,6 +192,7 @@ const route = useRoute()
 const { t, formatDate } = useLocale()
 
 const loading = ref(true)
+const ready = ref(false)
 const error = ref('')
 const profile = ref(null)
 const posts = ref([])
@@ -210,11 +215,13 @@ const followLabel = computed(() => {
   return t('user.follow')
 })
 
-async function load() {
-  loading.value = true
+async function load({ soft = false } = {}) {
+  if (!soft || !profile.value) loading.value = true
   error.value = ''
-  tab.value = 'posts'
-  people.value = []
+  if (!soft) {
+    tab.value = 'posts'
+    people.value = []
+  }
   followHint.value = false
   currentUser.value = getStoredUser()
   try {
@@ -222,11 +229,14 @@ async function load() {
     profile.value = data.user
     posts.value = data.posts || []
   } catch (err) {
-    profile.value = null
-    posts.value = []
-    error.value = err.message || t('user.missing')
+    if (!soft || !profile.value) {
+      profile.value = null
+      posts.value = []
+      error.value = err.message || t('user.missing')
+    }
   } finally {
     loading.value = false
+    ready.value = true
   }
 }
 
@@ -301,9 +311,17 @@ async function onFollowUser(person) {
 
 watch(
   () => props.username || route.params.username,
-  () => load(),
+  () => {
+    ready.value = false
+    load()
+  },
   { immediate: true },
 )
+
+onActivated(() => {
+  if (!ready.value) return
+  load({ soft: true })
+})
 </script>
 
 <style scoped>

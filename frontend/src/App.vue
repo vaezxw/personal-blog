@@ -181,7 +181,7 @@
     </header>
     <main class="main">
       <RouterView v-slot="{ Component }">
-        <KeepAlive :include="['HomeView']">
+        <KeepAlive :include="['HomeView', 'PostView', 'UserView', 'LibraryView']">
           <component :is="Component" />
         </KeepAlive>
       </RouterView>
@@ -210,7 +210,7 @@ import {
   getStoredUser,
   logout,
   markNotificationsRead,
-  me,
+  meCached,
   setStoredUser,
 } from './api'
 import { useLocale } from './composables/useLocale.js'
@@ -283,7 +283,7 @@ function openNotification(n) {
 
 async function refreshUser() {
   try {
-    const data = await me()
+    const data = await meCached()
     currentUser.value = data.user
     setStoredUser(data.user)
   } catch {

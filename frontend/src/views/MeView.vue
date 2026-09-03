@@ -203,7 +203,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getStoredUser, login, logout, me, register, setStoredUser } from '../api'
+import { getStoredUser, login, logout, meCached, register, setStoredUser } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 
 const { t } = useLocale()
@@ -297,7 +297,7 @@ async function doLogout() {
 
 async function refresh() {
   try {
-    const data = await me()
+    const data = await meCached()
     user.value = data.user
     setStoredUser(data.user)
   } catch {

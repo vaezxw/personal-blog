@@ -141,7 +141,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   fetchConversations,
@@ -384,23 +384,46 @@ watch(
   },
 )
 
-onMounted(async () => {
-  me.value = getStoredUser()
-  if (!me.value) return
-  await loadConversations()
-  syncFromRoute()
+function startPolls() {
+  stopPolls()
   pollTimer = setInterval(() => {
     if (activeUsername.value) loadThread(activeUsername.value, { silent: true })
   }, 8000)
   listPollTimer = setInterval(() => {
     loadConversations()
   }, 30000)
+}
+
+function stopPolls() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  if (listPollTimer) {
+    clearInterval(listPollTimer)
+    listPollTimer = null
+  }
+}
+
+onMounted(async () => {
+  me.value = getStoredUser()
+  if (!me.value) return
+  await loadConversations()
+  syncFromRoute()
+  startPolls()
   window.addEventListener('mohhen-auth-change', onAuth)
 })
 
+onActivated(() => {
+  if (me.value) startPolls()
+})
+
+onDeactivated(() => {
+  stopPolls()
+})
+
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
-  if (listPollTimer) clearInterval(listPollTimer)
+  stopPolls()
   window.removeEventListener('mohhen-auth-change', onAuth)
 })
 

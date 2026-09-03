@@ -112,8 +112,122 @@ export function searchSite(q, limit = 20) {
 }
 
 export function fetchPost(slug, preview = false) {
-  const qs = preview ? '?preview=1' : ''
-  return request(`/api/posts/${encodeURIComponent(slug)}${qs}`)
+  return request(`/api/posts/${encodeURIComponent(slug)}${preview ? '?preview=1' : ''}`)
+}
+
+const POST_CACHE_TTL_MS = 90_000
+/** @type {Map<string, { at: number, data: any, inflight: Promise<any>|null }>} */
+const postDetailCache = new Map()
+
+export function invalidatePostCache(slug) {
+  if (slug) postDetailCache.delete(String(slug))
+  else postDetailCache.clear()
+}
+
+export function peekPostCache(slug) {
+  const key = String(slug || '')
+  const hit = postDetailCache.get(key)
+  if (!hit?.data) return null
+  if (Date.now() - hit.at > POST_CACHE_TTL_MS) return null
+  return hit.data
+}
+
+export function warmPostCache(slug, data) {
+  if (!slug || !data) return
+  postDetailCache.set(String(slug), { at: Date.now(), data, inflight: null })
+}
+
+/** Deduped + short-TTL post detail fetch (shared by PostView / Admin repost). */
+export async function fetchPostCached(slug, { force = false, preview = false } = {}) {
+  const key = String(slug || '')
+  if (!key) throw new Error('slug required')
+  if (preview) return fetchPost(key, true)
+
+  const now = Date.now()
+  const hit = postDetailCache.get(key)
+  if (!force && hit?.data && now - hit.at < POST_CACHE_TTL_MS) return hit.data
+  if (!force && hit?.inflight) return hit.inflight
+
+  const inflight = fetchPost(key)
+    .then((data) => {
+      postDetailCache.set(key, { at: Date.now(), data, inflight: null })
+      return data
+    })
+    .catch((err) => {
+      const cur = postDetailCache.get(key)
+      if (cur) cur.inflight = null
+      throw err
+    })
+  postDetailCache.set(key, {
+    at: hit?.at || 0,
+    data: hit?.data || null,
+    inflight,
+  })
+  return inflight
+}
+
+const ME_TTL_MS = 45_000
+let meCache = { at: 0, data: null, inflight: null }
+
+export function invalidateMeCache() {
+  meCache = { at: 0, data: null, inflight: null }
+}
+
+export async function meCached({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && meCache.data && now - meCache.at < ME_TTL_MS) return meCache.data
+  if (!force && meCache.inflight) return meCache.inflight
+
+  meCache.inflight = me()
+    .then((data) => {
+      meCache = { at: Date.now(), data, inflight: null }
+      if (data?.user) setStoredUser(data.user)
+      return data
+    })
+    .catch((err) => {
+      meCache.inflight = null
+      throw err
+    })
+  return meCache.inflight
+}
+
+/** Stash a slim source snapshot for /admin?repost= to avoid a cold fetch. */
+const REPOST_STASH_KEY = 'mohhen-repost-source'
+
+export function stashRepostSource(post) {
+  if (!post?.slug) return
+  try {
+    sessionStorage.setItem(
+      REPOST_STASH_KEY,
+      JSON.stringify({
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt || '',
+        authorUsername: post.authorUsername || '',
+        authorId: post.authorId || '',
+        at: Date.now(),
+      }),
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+export function takeRepostSourceStash(slug) {
+  try {
+    const raw = sessionStorage.getItem(REPOST_STASH_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (!data?.slug || data.slug !== slug) return null
+    if (Date.now() - Number(data.at || 0) > 5 * 60_000) {
+      sessionStorage.removeItem(REPOST_STASH_KEY)
+      return null
+    }
+    sessionStorage.removeItem(REPOST_STASH_KEY)
+    return data
+  } catch {
+    return null
+  }
 }
 
 export function fetchAllPosts() {
@@ -126,6 +240,7 @@ export async function createPost(body) {
     body: JSON.stringify(body),
   })
   invalidatePostsCache()
+  invalidatePostCache()
   return data
 }
 
@@ -135,6 +250,7 @@ export async function updatePost(id, body) {
     body: JSON.stringify(body),
   })
   invalidatePostsCache()
+  invalidatePostCache(data?.slug)
   return data
 }
 
@@ -143,24 +259,39 @@ export async function deletePost(id) {
     method: 'DELETE',
   })
   invalidatePostsCache()
+  invalidatePostCache()
   return data
 }
 
-export function register(body) {
-  return request('/api/auth/register', {
+export async function login(body) {
+  const data = await request('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  if (data?.user) {
+    setStoredUser(data.user)
+    meCache = { at: Date.now(), data, inflight: null }
+  }
+  return data
 }
 
-export function login(body) {
-  return request('/api/auth/login', {
+export async function register(body) {
+  const data = await request('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  if (data?.user) {
+    setStoredUser(data.user)
+    meCache = { at: Date.now(), data, inflight: null }
+  }
+  return data
 }
 
 export function logout() {
+  invalidateMeCache()
+  invalidatePostsCache()
+  invalidatePostCache()
+  setStoredUser(null)
   return request('/api/auth/logout', { method: 'POST' })
 }
 

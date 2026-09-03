@@ -457,19 +457,26 @@
   <p v-else class="error">{{ error || t('post.missing') }}</p>
 </template>
 
+<script>
+export default { name: 'PostView' }
+</script>
+
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   createComment,
   deleteComment,
   fetchComments,
-  fetchPost,
+  fetchPostCached,
   getStoredUser,
-  me,
+  meCached,
+  peekPostCache,
   recordPostView,
   setStoredUser,
   shouldCountUniqueView,
+  stashRepostSource,
+  warmPostCache,
   fetchFriends,
   sharePostViaDm,
   togglePostDislike,
@@ -502,6 +509,7 @@ const { t, formatDate } = useLocale()
 
 const post = ref(null)
 const loading = ref(true)
+const postReady = ref(false)
 const error = ref('')
 const comments = ref([])
 const commentsLoading = ref(true)
@@ -721,6 +729,7 @@ function goRepost() {
     router.push(repostLoginTo.value)
     return
   }
+  if (post.value) stashRepostSource(post.value)
   router.push({
     name: 'admin',
     query: { repost: props.slug },
@@ -782,30 +791,47 @@ async function loadComments() {
   }
 }
 
-async function load() {
-  loading.value = true
-  error.value = ''
-  post.value = null
+async function load({ soft = false, force = false } = {}) {
   likeHint.value = false
   dislikeHint.value = false
   favoriteHint.value = false
   repostHint.value = false
-  try {
-    post.value = await fetchPost(props.slug)
-    await Promise.all([loadComments(), trackView()])
-  } catch (err) {
-    if (err.status === 401 && (err.code === 'friends' || err.code === 'private')) {
-      error.value = t('post.loginForVisibility')
-    } else if (err.code === 'friends') {
-      error.value = t('post.friendsOnly')
-    } else if (err.code === 'private') {
-      error.value = t('post.privateOnly')
-    } else {
-      error.value = err.message || t('post.loadFailed')
-    }
-  } finally {
+  error.value = ''
+
+  const cached = peekPostCache(props.slug)
+  if (cached && (soft || !post.value || post.value.slug !== props.slug)) {
+    post.value = cached
     loading.value = false
+  } else if (!soft) {
+    loading.value = true
+    if (!post.value || post.value.slug !== props.slug) post.value = null
+  }
+
+  const commentsPromise = loadComments()
+  const viewPromise = soft ? Promise.resolve() : trackView()
+
+  try {
+    const data = await fetchPostCached(props.slug, { force })
+    post.value = data
+    warmPostCache(props.slug, data)
+    loading.value = false
+    await Promise.all([commentsPromise, viewPromise])
     await scrollToHashTarget()
+  } catch (err) {
+    if (!post.value) {
+      if (err.status === 401 && (err.code === 'friends' || err.code === 'private')) {
+        error.value = t('post.loginForVisibility')
+      } else if (err.code === 'friends') {
+        error.value = t('post.friendsOnly')
+      } else if (err.code === 'private') {
+        error.value = t('post.privateOnly')
+      } else {
+        error.value = err.message || t('post.loadFailed')
+      }
+    }
+    loading.value = false
+  } finally {
+    postReady.value = true
   }
 }
 
@@ -908,7 +934,7 @@ async function openDmShare() {
   try {
     // Refresh session: sessionStorage may still have user while cookies expired
     try {
-      const data = await me()
+      const data = await meCached()
       if (data?.user) {
         currentUser.value = data.user
         setStoredUser(data.user)
@@ -1079,8 +1105,10 @@ async function removeComment(c) {
 }
 
 async function restoreUser() {
+  const stored = getStoredUser()
+  if (stored) currentUser.value = stored
   try {
-    const data = await me()
+    const data = await meCached()
     currentUser.value = data.user
   } catch {
     currentUser.value = null
@@ -1100,6 +1128,13 @@ onMounted(() => {
   }
 })
 
+onActivated(() => {
+  if (!postReady.value) return
+  if (post.value?.slug === props.slug) {
+    load({ soft: true, force: false })
+  }
+})
+
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onShareDocPointer)
   if (shareHintTimer) clearTimeout(shareHintTimer)
@@ -1113,6 +1148,7 @@ onUnmounted(() => {
 
 watch(() => props.slug, () => {
   closeShare()
+  postReady.value = false
   load()
 })
 watch(

@@ -80,8 +80,12 @@
   <p v-else class="error">{{ error || t('library.missing') }}</p>
 </template>
 
+<script>
+export default { name: 'LibraryView' }
+</script>
+
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import { fetchUserLibrary } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 
@@ -91,6 +95,7 @@ const props = defineProps({
 
 const { t, formatDate } = useLocale()
 const loading = ref(true)
+const ready = ref(false)
 const error = ref('')
 const payload = ref(null)
 const tab = ref('likes')
@@ -103,16 +108,19 @@ const emptyText = computed(() =>
   tab.value === 'favorites' ? t('library.emptyFavorites') : t('library.emptyLikes'),
 )
 
-async function load() {
-  loading.value = true
+async function load({ soft = false } = {}) {
+  if (!soft || !payload.value) loading.value = true
   error.value = ''
   try {
     payload.value = await fetchUserLibrary(props.username)
   } catch (err) {
-    payload.value = null
-    error.value = err.message || t('library.missing')
+    if (!soft || !payload.value) {
+      payload.value = null
+      error.value = err.message || t('library.missing')
+    }
   } finally {
     loading.value = false
+    ready.value = true
   }
 }
 
@@ -120,10 +128,16 @@ watch(
   () => props.username,
   () => {
     tab.value = 'likes'
+    ready.value = false
     load()
   },
   { immediate: true },
 )
+
+onActivated(() => {
+  if (!ready.value) return
+  load({ soft: true })
+})
 </script>
 
 <style scoped>

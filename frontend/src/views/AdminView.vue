@@ -461,12 +461,15 @@ import {
   deletePost,
   fetchAllPosts,
   fetchMyStats,
-  fetchPost,
+  fetchPostCached,
   getStoredUser,
   logout,
-  me,
+  meCached,
+  peekPostCache,
   setStoredUser,
+  takeRepostSourceStash,
   updatePost,
+  warmPostCache,
   updateProfile,
   uploadAttachment,
   uploadAvatar,
@@ -859,8 +862,41 @@ async function applyRepostFromRoute() {
   mdImportOk.value = ''
   mdImportError.value = ''
 
+  // Instant card from stash / warm cache, then confirm with network if needed
+  const stash = takeRepostSourceStash(slug)
+  const cached = peekPostCache(slug)
+  const seed = stash || (cached
+    ? {
+        slug: cached.slug,
+        title: cached.title,
+        excerpt: cached.excerpt || '',
+        authorUsername: cached.authorUsername || '',
+        authorId: cached.authorId || '',
+      }
+    : null)
+
+  if (seed) {
+    if (
+      (seed.authorId && seed.authorId === user.value.id) ||
+      (seed.authorUsername && seed.authorUsername === user.value.username)
+    ) {
+      form.repostOfSlug = ''
+      repostSource.value = null
+      formError.value = t('admin.repostOwnDenied')
+      clearRepostQuery()
+      return
+    }
+    repostSource.value = {
+      slug: seed.slug,
+      title: seed.title,
+      excerpt: seed.excerpt || '',
+      authorUsername: seed.authorUsername || '',
+    }
+    form.slug = `r-${slugifyHint(seed.slug || seed.title)}-${Date.now().toString(36).slice(-4)}`
+  }
+
   try {
-    const source = await fetchPost(slug)
+    const source = await fetchPostCached(slug)
     if (!source?.published || source.visibility === 'private') {
       form.repostOfSlug = ''
       repostSource.value = null
@@ -882,18 +918,24 @@ async function applyRepostFromRoute() {
       excerpt: source.excerpt || '',
       authorUsername: source.authorUsername || '',
     }
-    form.slug = `r-${slugifyHint(source.slug || source.title)}-${Date.now().toString(36).slice(-4)}`
-  } catch (err) {
-    form.repostOfSlug = ''
-    repostSource.value = null
-    formError.value = err.message || t('admin.repostUnavailable')
-  } finally {
-    // Drop query so refresh / navigation won't re-trigger
-    if (route.query.repost) {
-      const q = { ...route.query }
-      delete q.repost
-      router.replace({ name: 'admin', query: q })
+    if (!form.slug) {
+      form.slug = `r-${slugifyHint(source.slug || source.title)}-${Date.now().toString(36).slice(-4)}`
     }
+  } catch (err) {
+    if (!repostSource.value) {
+      form.repostOfSlug = ''
+      formError.value = err.message || t('admin.repostUnavailable')
+    }
+  } finally {
+    clearRepostQuery()
+  }
+}
+
+function clearRepostQuery() {
+  if (route.query.repost) {
+    const q = { ...route.query }
+    delete q.repost
+    router.replace({ name: 'admin', query: q })
   }
 }
 
@@ -945,6 +987,18 @@ async function loadPosts() {
   }
 }
 
+async function removePost(post) {
+  if (!user.value) return
+  if (!confirm(t('admin.deleteConfirm', { title: post.title }))) return
+  try {
+    await deletePost(post.id)
+    if (editingId.value === post.id) resetForm()
+    await loadPosts()
+  } catch (err) {
+    listError.value = err.message || t('admin.deleteFailed')
+  }
+}
+
 async function submitPost() {
   if (!user.value) {
     formError.value = t('admin.pleaseLoginShort')
@@ -971,16 +1025,26 @@ async function submitPost() {
         size: a.size,
       })),
     }
+    let saved
     if (editingId.value) {
-      await updatePost(editingId.value, payload)
+      saved = await updatePost(editingId.value, payload)
       formOk.value = t('admin.updated')
     } else {
-      await createPost(payload)
+      saved = await createPost(payload)
       formOk.value = t('admin.created')
     }
+    const publishedSlug = saved?.slug || form.slug
+    const wasPublished = Boolean(payload.published)
+    if (wasPublished && publishedSlug && saved) warmPostCache(publishedSlug, saved)
     resetForm()
-    await loadPosts()
-    studioTab.value = 'library'
+    // Don't block UI on library refetch; open the post when published
+    if (wasPublished && publishedSlug) {
+      router.push({ name: 'post', params: { slug: publishedSlug } })
+      loadPosts()
+    } else {
+      studioTab.value = 'library'
+      await loadPosts()
+    }
   } catch (err) {
     formError.value = err.message || t('admin.saveFailed')
   } finally {
@@ -988,24 +1052,22 @@ async function submitPost() {
   }
 }
 
-async function removePost(post) {
-  if (!user.value) return
-  if (!confirm(t('admin.deleteConfirm', { title: post.title }))) return
-  try {
-    await deletePost(post.id)
-    if (editingId.value === post.id) resetForm()
-    await loadPosts()
-  } catch (err) {
-    listError.value = err.message || t('admin.deleteFailed')
-  }
-}
-
 async function restoreSession() {
+  // Seed from session so compose gate isn't blank while /me resolves
+  const stored = getStoredUser()
+  if (stored) user.value = stored
+
+  const pendingRepost = String(route.query.repost || '').trim()
   try {
-    const data = await me()
+    const data = await meCached()
     applyUser(data.user)
-    await Promise.all([loadPosts(), loadStats()])
-    await applyRepostFromRoute()
+    if (pendingRepost) {
+      // Repost entry: prioritize compose; defer library/stats
+      await applyRepostFromRoute()
+      Promise.all([loadPosts(), loadStats()]).catch(() => {})
+    } else {
+      await Promise.all([loadPosts(), loadStats()])
+    }
   } catch {
     applyUser(null)
   }
