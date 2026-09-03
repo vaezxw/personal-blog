@@ -103,7 +103,7 @@ export const messages = {
       dm: '私信好友',
       dmTitle: '分享给站内好友',
       dmHint: '仅互相关注的好友可选',
-      dmEmpty: '暂无互关好友',
+      dmEmpty: '暂无互关好友，先去互相关注后再试',
       dmNote: '附加留言（可选）',
       dmSend: '发送私信',
       dmSending: '发送中…',
@@ -111,6 +111,7 @@ export const messages = {
       dmPartial: '已分享 {sent} 人，跳过 {skipped} 人',
       dmFailed: '私信分享失败',
       dmNeedLogin: '请先登录后再私信分享',
+      dmNeedLoginSuffix: '后再私信分享。',
     },
     user: {
       missing: '用户不存在',
@@ -658,6 +659,7 @@ export const messages = {
       dmPartial: 'Shared with {sent}, skipped {skipped}',
       dmFailed: 'Failed to share via DM',
       dmNeedLogin: 'Sign in to share via DM',
+      dmNeedLoginSuffix: ' to share via DM.',
     },
     user: {
       missing: 'User not found',

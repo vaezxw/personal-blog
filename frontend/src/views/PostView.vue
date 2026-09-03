@@ -109,7 +109,7 @@
               <span class="share-ico" aria-hidden="true">𝕏</span>
               {{ t('share.x') }}
             </button>
-            <button type="button" class="share-action" @click="openDmShare">
+            <button type="button" class="share-action" @click.stop="openDmShare">
               <span class="share-ico" aria-hidden="true">✉</span>
               {{ t('share.dm') }}
             </button>
@@ -142,38 +142,52 @@
       <p v-else-if="engageHint" class="muted like-hint" :class="{ ok: engageHintOk }">{{ engageHint }}</p>
     </div>
 
-    <div v-if="dmShareOpen" class="dm-share-mask" @click.self="dmShareOpen = false">
-      <div class="dm-share-panel panel geek-surface" role="dialog" :aria-label="t('share.dmTitle')">
-        <div class="dm-share-head">
-          <strong>{{ t('share.dmTitle') }}</strong>
-          <button type="button" class="btn ghost" @click="dmShareOpen = false">×</button>
+    <Teleport to="body">
+      <div
+        v-if="dmShareOpen"
+        class="dm-share-mask"
+        @click.self="dmShareOpen = false"
+      >
+        <div class="dm-share-panel panel geek-surface" role="dialog" :aria-label="t('share.dmTitle')">
+          <div class="dm-share-head">
+            <strong>{{ t('share.dmTitle') }}</strong>
+            <button type="button" class="btn ghost" @click="dmShareOpen = false">×</button>
+          </div>
+          <p class="muted">{{ t('share.dmHint') }}</p>
+          <p v-if="dmShareLoading" class="muted">{{ t('post.loading') }}</p>
+          <template v-else>
+            <p v-if="dmNeedLogin" class="error">
+              <RouterLink to="/me">{{ t('post.login') }}</RouterLink>
+              {{ t('share.dmNeedLoginSuffix') }}
+            </p>
+            <p v-else-if="!(dmFriends || []).length" class="muted">{{ t('share.dmEmpty') }}</p>
+            <ul v-else class="dm-friend-list">
+              <li v-for="f in dmFriends" :key="f.id">
+                <label class="dm-friend">
+                  <input v-model="dmSelected" type="checkbox" :value="f.username" />
+                  <span>{{ f.username }}</span>
+                </label>
+              </li>
+            </ul>
+          </template>
+          <label v-if="!dmNeedLogin" class="dm-note">
+            <span>{{ t('share.dmNote') }}</span>
+            <input v-model="dmNote" type="text" maxlength="200" />
+          </label>
+          <p v-if="dmShareError" class="error">{{ dmShareError }}</p>
+          <button
+            v-if="!dmNeedLogin"
+            type="button"
+            class="btn"
+            :disabled="dmShareBusy || !(dmSelected || []).length"
+            @click="sendDmShare"
+          >
+            {{ dmShareBusy ? t('share.dmSending') : t('share.dmSend') }}
+          </button>
+          <RouterLink v-else class="btn" to="/me">{{ t('post.login') }}</RouterLink>
         </div>
-        <p class="muted">{{ t('share.dmHint') }}</p>
-        <p v-if="dmShareLoading" class="muted">{{ t('post.loading') }}</p>
-        <p v-else-if="!(dmFriends || []).length" class="muted">{{ t('share.dmEmpty') }}</p>
-        <ul v-else class="dm-friend-list">
-          <li v-for="f in dmFriends" :key="f.id">
-            <label class="dm-friend">
-              <input v-model="dmSelected" type="checkbox" :value="f.username" />
-              <span>{{ f.username }}</span>
-            </label>
-          </li>
-        </ul>
-        <label class="dm-note">
-          <span>{{ t('share.dmNote') }}</span>
-          <input v-model="dmNote" type="text" maxlength="200" />
-        </label>
-        <p v-if="dmShareError" class="error">{{ dmShareError }}</p>
-        <button
-          type="button"
-          class="btn"
-          :disabled="dmShareBusy || !(dmSelected || []).length"
-          @click="sendDmShare"
-        >
-          {{ dmShareBusy ? t('share.dmSending') : t('share.dmSend') }}
-        </button>
       </div>
-    </div>
+    </Teleport>
 
     <div ref="proseEl" class="prose" v-html="renderedHtml"></div>
 
@@ -463,6 +477,7 @@ const dmNote = ref('')
 const dmShareLoading = ref(false)
 const dmShareBusy = ref(false)
 const dmShareError = ref('')
+const dmNeedLogin = ref(false)
 const engageHint = ref('')
 const engageHintOk = ref(true)
 let shareHintTimer = null
@@ -797,22 +812,36 @@ async function openDmShare() {
   dmNote.value = ''
   dmSelected.value = []
   dmFriends.value = []
-  if (!currentUser.value) {
-    flashShare(t('share.dmNeedLogin'), false)
-    return
-  }
+  dmNeedLogin.value = false
   closeShare()
   dmShareOpen.value = true
   dmShareLoading.value = true
+
   try {
+    // Refresh session: sessionStorage may still have user while cookies expired
+    try {
+      const data = await me()
+      if (data?.user) {
+        currentUser.value = data.user
+      } else {
+        currentUser.value = null
+      }
+    } catch {
+      currentUser.value = null
+    }
+
+    if (!currentUser.value) {
+      dmNeedLogin.value = true
+      return
+    }
+
     const list = await fetchFriends()
     dmFriends.value = Array.isArray(list) ? list : []
   } catch (err) {
     dmFriends.value = []
     if (err?.status === 401 || String(err.message || '').includes('Unauthorized')) {
       currentUser.value = null
-      dmShareOpen.value = false
-      flashShare(t('share.dmNeedLogin'), false)
+      dmNeedLogin.value = true
       return
     }
     dmShareError.value = err.message || t('share.dmFailed')
@@ -842,7 +871,8 @@ async function sendDmShare() {
   } catch (err) {
     if (err?.status === 401 || String(err.message || '').includes('Unauthorized')) {
       currentUser.value = null
-      dmShareError.value = t('share.dmNeedLogin')
+      dmNeedLogin.value = true
+      dmShareError.value = ''
     } else {
       dmShareError.value = err.message || t('share.dmFailed')
     }
@@ -1178,7 +1208,7 @@ watch(
 .dm-share-mask {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 200;
   display: grid;
   place-items: center;
   padding: 1rem;
