@@ -1,6 +1,6 @@
-import { requireUser } from '../_lib/auth.js'
-import { isMutualFollow, mapPublicUser } from '../_lib/follows.js'
-import { empty, json } from '../_lib/response.js'
+import { requireUser } from './_lib/auth.js'
+import { isMutualFollow, mapPublicUser } from './_lib/follows.js'
+import { empty, json } from './_lib/response.js'
 
 /** Mutual-follow friends of the current user */
 export async function onRequest(context) {
