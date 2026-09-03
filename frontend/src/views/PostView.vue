@@ -146,43 +146,84 @@
         class="dm-share-mask"
         @click.self="dmShareOpen = false"
       >
-        <div class="dm-share-panel panel geek-surface" role="dialog" :aria-label="t('share.dmTitle')">
+        <div
+          class="dm-share-panel"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('share.dmTitle')"
+        >
           <div class="dm-share-head">
-            <strong>{{ t('share.dmTitle') }}</strong>
-            <button type="button" class="btn ghost" @click="dmShareOpen = false">×</button>
+            <div>
+              <strong>{{ t('share.dmTitle') }}</strong>
+              <p class="muted dm-share-sub">{{ t('share.dmHint') }}</p>
+            </div>
+            <button type="button" class="dm-share-close" :aria-label="t('share.dmClose')" @click="dmShareOpen = false">
+              ×
+            </button>
           </div>
-          <p class="muted">{{ t('share.dmHint') }}</p>
-          <p v-if="dmShareLoading" class="muted">{{ t('post.loading') }}</p>
-          <template v-else>
-            <p v-if="dmNeedLogin" class="error">
-              <RouterLink to="/me">{{ t('post.login') }}</RouterLink>
-              {{ t('share.dmNeedLoginSuffix') }}
-            </p>
-            <p v-else-if="!(dmFriends || []).length" class="muted">{{ t('share.dmEmpty') }}</p>
-            <ul v-else class="dm-friend-list">
-              <li v-for="f in dmFriends" :key="f.id">
-                <label class="dm-friend">
-                  <input v-model="dmSelected" type="checkbox" :value="f.username" />
-                  <span>{{ f.username }}</span>
-                </label>
-              </li>
-            </ul>
-          </template>
-          <label v-if="!dmNeedLogin" class="dm-note">
+
+          <div v-if="post" class="dm-share-preview">
+            <span class="dm-share-preview-label">{{ t('share.dmPreview') }}</span>
+            <strong>{{ post.title }}</strong>
+            <span v-if="post.authorUsername" class="muted">@{{ post.authorUsername }}</span>
+          </div>
+
+          <div class="dm-share-body">
+            <p v-if="dmShareLoading" class="muted dm-share-status">{{ t('post.loading') }}</p>
+            <template v-else>
+              <p v-if="dmNeedLogin" class="error dm-share-status">
+                <RouterLink to="/me">{{ t('post.login') }}</RouterLink>
+                {{ t('share.dmNeedLoginSuffix') }}
+              </p>
+              <p v-else-if="!(dmFriends || []).length" class="muted dm-share-status">
+                {{ t('share.dmEmpty') }}
+              </p>
+              <ul v-else class="dm-friend-list">
+                <li v-for="f in dmFriends" :key="f.id">
+                  <label class="dm-friend" :class="{ on: dmSelected.includes(f.username) }">
+                    <input v-model="dmSelected" type="checkbox" :value="f.username" />
+                    <span class="dm-friend-avatar" aria-hidden="true">
+                      <img v-if="f.avatarUrl" :src="f.avatarUrl" alt="" />
+                      <template v-else>{{ (f.username || '?').slice(0, 1).toUpperCase() }}</template>
+                    </span>
+                    <span class="dm-friend-name">{{ f.username }}</span>
+                    <span class="dm-friend-check" aria-hidden="true">✓</span>
+                  </label>
+                </li>
+              </ul>
+            </template>
+          </div>
+
+          <label v-if="!dmNeedLogin && !dmShareLoading" class="dm-note">
             <span>{{ t('share.dmNote') }}</span>
-            <input v-model="dmNote" type="text" maxlength="200" />
+            <input
+              v-model="dmNote"
+              type="text"
+              maxlength="200"
+              :placeholder="t('share.dmNotePlaceholder')"
+            />
           </label>
+
           <p v-if="dmShareError" class="error">{{ dmShareError }}</p>
-          <button
-            v-if="!dmNeedLogin"
-            type="button"
-            class="btn"
-            :disabled="dmShareBusy || !(dmSelected || []).length"
-            @click="sendDmShare"
-          >
-            {{ dmShareBusy ? t('share.dmSending') : t('share.dmSend') }}
-          </button>
-          <RouterLink v-else class="btn" to="/me">{{ t('post.login') }}</RouterLink>
+
+          <div class="dm-share-actions">
+            <button
+              v-if="!dmNeedLogin"
+              type="button"
+              class="btn dm-share-send"
+              :disabled="dmShareBusy || dmShareLoading || !(dmSelected || []).length"
+              @click="sendDmShare"
+            >
+              {{
+                dmShareBusy
+                  ? t('share.dmSending')
+                  : (dmSelected || []).length
+                    ? t('share.dmSendCount', { count: dmSelected.length })
+                    : t('share.dmSend')
+              }}
+            </button>
+            <RouterLink v-else class="btn dm-share-send" to="/me">{{ t('post.login') }}</RouterLink>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -1262,59 +1303,198 @@ watch(
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: color-mix(in srgb, #0f172a 45%, transparent);
+  background: color-mix(in srgb, #0b1220 55%, transparent);
+  backdrop-filter: blur(4px);
 }
 
 .dm-share-panel {
-  width: min(22rem, 100%);
+  width: min(22.5rem, 100%);
   display: grid;
   gap: 0.75rem;
-  padding: 1rem 1.1rem;
+  padding: 1rem 1.05rem 1.05rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 35%, transparent);
 }
 
 .dm-share-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+.dm-share-head strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.dm-share-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+}
+
+.dm-share-close {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dm-share-close:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.dm-share-preview {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.dm-share-preview-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.dm-share-preview strong {
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.dm-share-body {
+  min-height: 0;
+}
+
+.dm-share-status {
+  margin: 0;
+  padding: 0.55rem 0.15rem;
+  font-size: 0.88rem;
 }
 
 .dm-friend-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 12rem;
+  max-height: 13.5rem;
   overflow: auto;
-  display: grid;
-  gap: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .dm-friend {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.45rem;
-  border-radius: 0.35rem;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dm-friend input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .dm-friend:hover {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
+.dm-friend.on {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+}
+
+.dm-friend-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.dm-friend-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dm-friend-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.dm-friend-check {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: transparent;
+  font-size: 0.7rem;
+  display: grid;
+  place-items: center;
+}
+
+.dm-friend.on .dm-friend-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .dm-note {
   display: grid;
-  gap: 0.35rem;
-  font-size: 0.88rem;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .dm-note input {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 0.4rem;
-  padding: 0.45rem 0.6rem;
-  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   color: var(--ink);
+  font: inherit;
+}
+
+.dm-note input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.dm-share-actions {
+  display: grid;
+}
+
+.dm-share-send {
+  width: 100%;
+  justify-content: center;
 }
 
 .share-wrap {

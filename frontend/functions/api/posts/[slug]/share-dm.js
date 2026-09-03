@@ -1,8 +1,8 @@
 import { requireUser } from '../../_lib/auth.js'
+import { encodePostShare, sharePreviewText } from '../../_lib/dmShare.js'
 import {
   findOrCreateConversation,
   maybeNotifyMessage,
-  previewText,
 } from '../../_lib/messages.js'
 import { isMutualFollow } from '../../_lib/follows.js'
 import { newId } from '../../_lib/crypto.js'
@@ -43,18 +43,16 @@ export async function onRequest(context) {
     if (!usernames.length) return json(400, { error: 'usernames required' })
     if (usernames.length > 20) return json(400, { error: 'too many recipients' })
 
-    const origin = new URL(request.url).origin
-    const postUrl = `${origin}/post/${encodeURIComponent(post.slug)}`
     const note = String(body?.note || '').trim().slice(0, 200)
-    const shareBody = [
-      '【分享文章】',
-      `《${post.title}》`,
-      post.author_username ? `作者：@${post.author_username}` : '',
-      postUrl,
-      note ? `留言：${note}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
+    const sharePayload = {
+      slug: post.slug,
+      title: post.title,
+      authorUsername: post.author_username || '',
+      excerpt: post.excerpt || '',
+      note,
+    }
+    const shareBody = encodePostShare(sharePayload)
+    const preview = sharePreviewText(sharePayload)
 
     const sent = []
     const skipped = []
@@ -89,7 +87,7 @@ export async function onRequest(context) {
          SET last_message_at = ?, last_message_preview = ?
          WHERE id = ?`,
       )
-        .bind(now, previewText(shareBody), conversation.id)
+        .bind(now, preview, conversation.id)
         .run()
       await maybeNotifyMessage(env.DB, {
         userId: peer.id,

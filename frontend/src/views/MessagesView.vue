@@ -38,7 +38,7 @@
                   <strong>{{ c.peer.username }}</strong>
                   <time v-if="c.lastMessageAt" class="muted">{{ formatDate(c.lastMessageAt) }}</time>
                 </span>
-                <span class="dm-preview muted">{{ c.lastMessagePreview || '—' }}</span>
+                <span class="dm-preview muted">{{ previewLabel(c.lastMessagePreview) }}</span>
               </span>
               <span v-if="c.unreadCount > 0" class="dm-unread mono">{{ c.unreadCount }}</span>
             </button>
@@ -76,13 +76,38 @@
 
             <template v-else>
               <div
-                v-for="(m, i) in messages"
+                v-for="(m, i) in enrichedMessages"
                 :key="m.id"
                 class="dm-bubble-wrap"
                 :class="{ mine: m.mine, 'show-time': shouldShowTime(m, i) }"
               >
                 <time v-if="shouldShowTime(m, i)" class="dm-time muted">{{ formatDate(m.createdAt) }}</time>
-                <div class="dm-bubble" :class="{ mine: m.mine, pending: m.pending, failed: m.failed }">
+                <div
+                  v-if="m.share"
+                  class="dm-share-msg"
+                  :class="{ mine: m.mine, pending: m.pending, failed: m.failed }"
+                >
+                  <RouterLink
+                    class="dm-share-card"
+                    :to="{ name: 'post', params: { slug: m.share.slug } }"
+                  >
+                    <span class="dm-share-badge">{{ t('dm.shareBadge') }}</span>
+                    <strong class="dm-share-title">{{ m.share.title }}</strong>
+                    <span v-if="m.share.author" class="dm-share-meta muted">
+                      @{{ m.share.author }}
+                    </span>
+                    <span v-if="m.share.excerpt" class="dm-share-excerpt muted">
+                      {{ m.share.excerpt }}
+                    </span>
+                    <span class="dm-share-cta">{{ t('dm.shareOpen') }} →</span>
+                  </RouterLink>
+                  <p v-if="m.share.note" class="dm-share-note">{{ m.share.note }}</p>
+                </div>
+                <div
+                  v-else
+                  class="dm-bubble"
+                  :class="{ mine: m.mine, pending: m.pending, failed: m.failed }"
+                >
                   <p>{{ m.body }}</p>
                 </div>
               </div>
@@ -125,6 +150,7 @@ import {
   sendMessage,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import { parsePostShare, sharePreviewText } from '../utils/dmShare.js'
 
 const props = defineProps({
   username: { type: String, default: '' },
@@ -158,8 +184,21 @@ const totalUnread = computed(() =>
 )
 const totalUnreadLabel = computed(() => (totalUnread.value > 99 ? '99+' : String(totalUnread.value)))
 
+const enrichedMessages = computed(() =>
+  messages.value.map((m) => ({
+    ...m,
+    share: parsePostShare(m.body),
+  })),
+)
+
 function letter(name) {
   return String(name || '?').slice(0, 1).toUpperCase()
+}
+
+function previewLabel(text) {
+  const share = parsePostShare(text)
+  if (share) return sharePreviewText(share)
+  return text || '—'
 }
 
 function shouldShowTime(m, index) {
@@ -438,24 +477,31 @@ async function onAuth() {
 .dm-list {
   list-style: none;
   margin: 0;
-  padding: 0.4rem;
+  padding: 0.35rem;
   overflow: auto;
-  display: grid;
-  gap: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   flex: 1;
+  align-content: flex-start;
+  justify-content: flex-start;
+}
+
+.dm-list > li {
+  flex: 0 0 auto;
 }
 
 .dm-row {
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 0.65rem;
+  gap: 0.55rem;
   align-items: center;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  border-radius: 12px;
-  padding: 0.6rem 0.65rem;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
   color: inherit;
   cursor: pointer;
 }
@@ -643,6 +689,94 @@ async function onAuth() {
   word-break: break-word;
   line-height: 1.45;
   font-size: 0.95rem;
+}
+
+.dm-share-msg {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 100%;
+}
+
+.dm-share-msg.pending {
+  opacity: 0.7;
+}
+
+.dm-share-msg.failed .dm-share-card {
+  border-color: #e11d48;
+}
+
+.dm-share-card {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 6%);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dm-share-msg.mine .dm-share-card {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+
+.dm-share-card:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.dm-share-badge {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.dm-share-title {
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.dm-share-meta {
+  font-size: 0.78rem;
+}
+
+.dm-share-excerpt {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dm-share-cta {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dm-share-note {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, #000 4%);
+  border: 1px solid var(--line);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dm-share-msg.mine .dm-share-note {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
 }
 
 .dm-composer {
