@@ -180,7 +180,11 @@
       </div>
     </header>
     <main class="main">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <KeepAlive :include="['HomeView']">
+          <component :is="Component" />
+        </KeepAlive>
+      </RouterView>
     </main>
     <footer class="site-footer">
       <div class="footer-inner">

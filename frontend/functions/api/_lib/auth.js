@@ -28,12 +28,11 @@ export function publicUser(row) {
 
 export function mapPost(row) {
   if (!row) return null
-  return {
+  const post = {
     id: row.id,
     title: row.title,
     slug: row.slug,
     excerpt: row.excerpt,
-    content: row.content,
     published: Boolean(row.published),
     visibility: row.visibility || 'public',
     authorId: row.author_id,
@@ -48,6 +47,10 @@ export function mapPost(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+  if (row.content !== undefined && row.content !== null) {
+    post.content = row.content
+  }
+  return post
 }
 
 export async function optionalUser(context) {

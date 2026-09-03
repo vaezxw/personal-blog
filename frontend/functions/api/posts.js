@@ -39,18 +39,49 @@ export async function onRequest(context) {
     if (!includeDrafts) {
       const user = await optionalUser(context)
       const vis = publishedVisibilitySql(user?.id || null)
-      const { results } = await env.DB.prepare(
-        `SELECT p.*, u.username AS author_username,
+      // List payload: omit full content (use excerpt / content prefix) to cut JSON size
+      const listSelect = `SELECT p.id, p.title, p.slug, p.published, p.visibility, p.author_id,
+         p.created_at, p.updated_at, p.view_count, p.like_count, p.dislike_count,
+         p.favorite_count, p.click_count, p.repost_of_post_id,
+         CASE
+           WHEN length(trim(COALESCE(p.excerpt, ''))) > 0 THEN p.excerpt
+           ELSE substr(COALESCE(p.content, ''), 1, 240)
+         END AS excerpt,
+         u.username AS author_username,
          u.avatar_url AS author_avatar_url
          FROM posts p
          JOIN users u ON u.id = p.author_id
          WHERE ${vis.sql}
-         ORDER BY p.created_at DESC`,
-      )
-        .bind(...vis.binds)
-        .all()
+         ORDER BY p.created_at DESC
+         LIMIT 100`
+
+      let results
+      try {
+        ;({ results } = await env.DB.prepare(listSelect).bind(...vis.binds).all())
+      } catch {
+        // Older D1 schema may lack dislike_count / repost_of_post_id
+        ;({ results } = await env.DB.prepare(
+          `SELECT p.id, p.title, p.slug, p.published, p.visibility, p.author_id,
+           p.created_at, p.updated_at, p.view_count, p.like_count, p.favorite_count, p.click_count,
+           CASE
+             WHEN length(trim(COALESCE(p.excerpt, ''))) > 0 THEN p.excerpt
+             ELSE substr(COALESCE(p.content, ''), 1, 240)
+           END AS excerpt,
+           u.username AS author_username,
+           u.avatar_url AS author_avatar_url
+           FROM posts p
+           JOIN users u ON u.id = p.author_id
+           WHERE ${vis.sql}
+           ORDER BY p.created_at DESC
+           LIMIT 100`,
+        )
+          .bind(...vis.binds)
+          .all())
+      }
+
       const posts = await enrichPosts(env.DB, (results || []).map(mapPost), {
         userId: user?.id || null,
+        lean: true,
       })
       return json(200, posts)
     }

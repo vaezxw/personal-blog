@@ -61,6 +61,49 @@ export function fetchPosts() {
   return request('/api/posts')
 }
 
+const POSTS_CACHE_TTL_MS = 60_000
+let postsListCache = { at: 0, data: null, inflight: null }
+
+export function invalidatePostsCache() {
+  postsListCache = { at: 0, data: null, inflight: null }
+}
+
+/** Homepage list with short TTL + stale-while-revalidate. */
+export async function fetchPostsCached({ force = false } = {}) {
+  const now = Date.now()
+  const fresh = postsListCache.data && now - postsListCache.at < POSTS_CACHE_TTL_MS
+  if (!force && fresh) return postsListCache.data
+
+  if (!force && postsListCache.data) {
+    // Return stale immediately; refresh in background
+    if (!postsListCache.inflight) {
+      postsListCache.inflight = fetchPosts()
+        .then((data) => {
+          postsListCache = { at: Date.now(), data, inflight: null }
+          return data
+        })
+        .catch(() => {
+          postsListCache.inflight = null
+          return postsListCache.data
+        })
+    }
+    return postsListCache.data
+  }
+
+  if (postsListCache.inflight) return postsListCache.inflight
+
+  postsListCache.inflight = fetchPosts()
+    .then((data) => {
+      postsListCache = { at: Date.now(), data, inflight: null }
+      return data
+    })
+    .catch((err) => {
+      postsListCache.inflight = null
+      throw err
+    })
+  return postsListCache.inflight
+}
+
 export function searchSite(q, limit = 20) {
   const params = new URLSearchParams()
   params.set('q', String(q || '').trim())
@@ -77,24 +120,30 @@ export function fetchAllPosts() {
   return request('/api/posts?all=1')
 }
 
-export function createPost(body) {
-  return request('/api/posts', {
+export async function createPost(body) {
+  const data = await request('/api/posts', {
     method: 'POST',
     body: JSON.stringify(body),
   })
+  invalidatePostsCache()
+  return data
 }
 
-export function updatePost(id, body) {
-  return request(`/api/posts/${id}`, {
+export async function updatePost(id, body) {
+  const data = await request(`/api/posts/${id}`, {
     method: 'PUT',
     body: JSON.stringify(body),
   })
+  invalidatePostsCache()
+  return data
 }
 
-export function deletePost(id) {
-  return request(`/api/posts/${id}`, {
+export async function deletePost(id) {
+  const data = await request(`/api/posts/${id}`, {
     method: 'DELETE',
   })
+  invalidatePostsCache()
+  return data
 }
 
 export function register(body) {

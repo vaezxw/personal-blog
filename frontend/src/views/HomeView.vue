@@ -12,8 +12,8 @@
   </section>
 
   <section class="post-list" aria-live="polite">
-    <p v-if="loading" class="muted">{{ t('home.loading') }}</p>
-    <p v-else-if="error" class="error">{{ error }}</p>
+    <p v-if="loading && !posts.length" class="muted">{{ t('home.loading') }}</p>
+    <p v-else-if="error && !posts.length" class="error">{{ error }}</p>
     <article v-for="post in posts" :key="post.id" class="post-row">
       <div class="post-meta">
         <RouterLink
@@ -63,9 +63,13 @@
   </section>
 </template>
 
+<script>
+export default { name: 'HomeView' }
+</script>
+
 <script setup>
-import { onMounted, ref } from 'vue'
-import { fetchPosts } from '../api'
+import { onActivated, onMounted, ref } from 'vue'
+import { fetchPostsCached } from '../api'
 import TipJarModal from '../components/TipJarModal.vue'
 import { useLocale } from '../composables/useLocale.js'
 import { toPlainExcerpt } from '../utils/markdownUpload.js'
@@ -75,19 +79,34 @@ const posts = ref([])
 const loading = ref(true)
 const error = ref('')
 const tipOpen = ref(false)
+const ready = ref(false)
 
 function plainExcerpt(text) {
   return toPlainExcerpt(text, 120)
 }
 
-onMounted(async () => {
+async function loadPosts({ force = false, showLoading = false } = {}) {
+  if (showLoading && !posts.value.length) loading.value = true
+  error.value = ''
   try {
-    posts.value = await fetchPosts()
+    const data = await fetchPostsCached({ force })
+    posts.value = Array.isArray(data) ? data : []
   } catch (err) {
-    error.value = err.message || t('home.loadFailed')
+    if (!posts.value.length) error.value = err.message || t('home.loadFailed')
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  await loadPosts({ showLoading: true })
+  ready.value = true
+})
+
+// Keep-alive: returning from article restores DOM instantly; soft-refresh in background
+onActivated(() => {
+  if (!ready.value) return
+  loadPosts({ force: false, showLoading: false })
 })
 </script>
 

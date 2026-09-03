@@ -26,81 +26,109 @@ export async function getCommentCountsForPosts(db, postIds) {
   return map
 }
 
-export async function enrichPosts(db, posts, { userId = null } = {}) {
-  if (!posts?.length) return []
-  const ids = posts.map((p) => p.id)
-  const commentMap = await getCommentCountsForPosts(db, ids)
-  let attachmentMap = Object.create(null)
-  try {
-    attachmentMap = await getAttachmentsForPosts(db, ids)
-  } catch {
-    for (const id of ids) attachmentMap[id] = []
-  }
-
-  // Load repost sources
-  const repostIds = [...new Set(posts.map((p) => p.repostOfPostId).filter(Boolean))]
+async function loadRepostSources(db, posts) {
   const sourceMap = Object.create(null)
-  if (repostIds.length) {
-    const placeholders = repostIds.map(() => '?').join(',')
-    try {
-      const { results } = await db
-        .prepare(
-          `SELECT p.id, p.title, p.slug, p.excerpt, u.username AS author_username,
-                  u.avatar_url AS author_avatar_url
-           FROM posts p
-           JOIN users u ON u.id = p.author_id
-           WHERE p.id IN (${placeholders})`,
-        )
-        .bind(...repostIds)
-        .all()
-      for (const row of results || []) {
-        sourceMap[row.id] = {
-          id: row.id,
-          title: row.title,
-          slug: row.slug,
-          excerpt: row.excerpt || '',
-          authorUsername: row.author_username,
-          authorAvatarUrl: row.author_avatar_url || null,
-        }
+  const repostIds = [...new Set(posts.map((p) => p.repostOfPostId).filter(Boolean))]
+  if (!repostIds.length) return sourceMap
+  const placeholders = repostIds.map(() => '?').join(',')
+  try {
+    const { results } = await db
+      .prepare(
+        `SELECT p.id, p.title, p.slug, p.excerpt, u.username AS author_username,
+                u.avatar_url AS author_avatar_url
+         FROM posts p
+         JOIN users u ON u.id = p.author_id
+         WHERE p.id IN (${placeholders})`,
+      )
+      .bind(...repostIds)
+      .all()
+    for (const row of results || []) {
+      sourceMap[row.id] = {
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        excerpt: row.excerpt || '',
+        authorUsername: row.author_username,
+        authorAvatarUrl: row.author_avatar_url || null,
       }
-    } catch {
-      /* column may not exist before migration */
     }
+  } catch {
+    /* column may not exist before migration */
   }
+  return sourceMap
+}
 
-  let likedSet = new Set()
-  let favoritedSet = new Set()
-  let dislikedSet = new Set()
-  if (userId) {
-    const placeholders = ids.map(() => '?').join(',')
-    const [likeRes, favRes] = await Promise.all([
-      db
-        .prepare(
-          `SELECT post_id FROM post_likes WHERE user_id = ? AND post_id IN (${placeholders})`,
-        )
-        .bind(userId, ...ids)
-        .all(),
-      db
-        .prepare(
-          `SELECT post_id FROM post_favorites WHERE user_id = ? AND post_id IN (${placeholders})`,
-        )
-        .bind(userId, ...ids)
-        .all(),
-    ])
-    likedSet = new Set((likeRes.results || []).map((r) => r.post_id))
-    favoritedSet = new Set((favRes.results || []).map((r) => r.post_id))
+async function loadUserReactions(db, userId, ids) {
+  const empty = { likedSet: new Set(), favoritedSet: new Set(), dislikedSet: new Set() }
+  if (!userId || !ids.length) return empty
+  const placeholders = ids.map(() => '?').join(',')
+  const dislikePromise = (async () => {
     try {
-      const dislikeRes = await db
+      return await db
         .prepare(
           `SELECT post_id FROM post_dislikes WHERE user_id = ? AND post_id IN (${placeholders})`,
         )
         .bind(userId, ...ids)
         .all()
-      dislikedSet = new Set((dislikeRes.results || []).map((r) => r.post_id))
     } catch {
-      /* migration pending */
+      return { results: [] }
     }
+  })()
+  const [likeRes, favRes, dislikeRes] = await Promise.all([
+    db
+      .prepare(`SELECT post_id FROM post_likes WHERE user_id = ? AND post_id IN (${placeholders})`)
+      .bind(userId, ...ids)
+      .all(),
+    db
+      .prepare(
+        `SELECT post_id FROM post_favorites WHERE user_id = ? AND post_id IN (${placeholders})`,
+      )
+      .bind(userId, ...ids)
+      .all(),
+    dislikePromise,
+  ])
+  return {
+    likedSet: new Set((likeRes.results || []).map((r) => r.post_id)),
+    favoritedSet: new Set((favRes.results || []).map((r) => r.post_id)),
+    dislikedSet: new Set((dislikeRes.results || []).map((r) => r.post_id)),
   }
+}
+
+/**
+ * Enrich posts with counts / flags.
+ * @param {{ userId?: string|null, lean?: boolean }} options
+ * lean=true: skip attachments + per-user reaction flags (for homepage list)
+ */
+export async function enrichPosts(db, posts, { userId = null, lean = false } = {}) {
+  if (!posts?.length) return []
+  const ids = posts.map((p) => p.id)
+
+  const commentPromise = getCommentCountsForPosts(db, ids)
+  const repostPromise = loadRepostSources(db, posts)
+  const attachmentPromise = lean
+    ? Promise.resolve(Object.create(null))
+    : getAttachmentsForPosts(db, ids).catch(() => {
+        const map = Object.create(null)
+        for (const id of ids) map[id] = []
+        return map
+      })
+  const reactionsPromise =
+    lean || !userId
+      ? Promise.resolve({
+          likedSet: new Set(),
+          favoritedSet: new Set(),
+          dislikedSet: new Set(),
+        })
+      : loadUserReactions(db, userId, ids)
+
+  const [commentMap, sourceMap, attachmentMap, reactions] = await Promise.all([
+    commentPromise,
+    repostPromise,
+    attachmentPromise,
+    reactionsPromise,
+  ])
+
+  const { likedSet, favoritedSet, dislikedSet } = reactions
 
   return posts.map((p) => {
     const viewCount = Number(p.viewCount || 0)
@@ -109,7 +137,7 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
     const favoriteCount = Number(p.favoriteCount || 0)
     const clickCount = Number(p.clickCount || 0)
     const commentCount = commentMap[p.id] || 0
-    return {
+    const base = {
       ...p,
       viewCount,
       likeCount,
@@ -117,9 +145,17 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
       favoriteCount,
       clickCount,
       commentCount,
-      attachments: attachmentMap[p.id] || [],
       repostOf: p.repostOfPostId ? sourceMap[p.repostOfPostId] || null : null,
       heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount, dislikeCount }),
+    }
+    if (lean) {
+      // Drop heavy unused fields for list payloads
+      delete base.content
+      return base
+    }
+    return {
+      ...base,
+      attachments: attachmentMap[p.id] || [],
       likedByMe: likedSet.has(p.id),
       favoritedByMe: favoritedSet.has(p.id),
       dislikedByMe: dislikedSet.has(p.id),
