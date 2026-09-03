@@ -112,6 +112,30 @@
 
     <div ref="proseEl" class="prose" v-html="renderedHtml"></div>
 
+    <section
+      v-if="post.attachments?.length"
+      class="attachments panel"
+      aria-label="attachments"
+    >
+      <h2>{{ t('post.attachments') }}</h2>
+      <ul class="attachment-list">
+        <li v-for="file in post.attachments" :key="file.id || file.key">
+          <div class="attachment-meta">
+            <strong>{{ file.name }}</strong>
+            <span class="muted">{{ formatAttachmentSize(file.size) }}</span>
+          </div>
+          <a
+            class="btn ghost"
+            :href="attachmentHref(file)"
+            :download="file.name"
+            rel="noopener"
+          >
+            {{ t('post.attachmentDownload') }}
+          </a>
+        </li>
+      </ul>
+    </section>
+
     <section id="comments" class="comments panel" :class="{ flash: highlightTarget === 'comments' }">
       <h2>{{ t('post.comments') }}</h2>
       <p v-if="commentsLoading" class="muted">{{ t('post.commentsLoading') }}</p>
@@ -439,6 +463,20 @@ const renderedHtml = computed(() => {
   if (!post.value) return ''
   return renderPostContent(post.value.content || '')
 })
+
+function formatAttachmentSize(n) {
+  const size = Number(n || 0)
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function attachmentHref(file) {
+  const base = String(file?.url || '')
+  if (!base) return '#'
+  const name = encodeURIComponent(file?.name || 'download')
+  return `${base}${base.includes('?') ? '&' : '?'}download=${name}`
+}
 
 const proseEl = ref(null)
 const tocTree = ref([])
@@ -1035,6 +1073,49 @@ watch(
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
     background-color: color-mix(in srgb, var(--accent) 10%, transparent);
   }
+}
+
+.attachments {
+  margin-top: 2rem;
+}
+
+.attachments h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.15rem;
+}
+
+.attachment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.attachment-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.attachment-list li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.attachment-meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.attachment-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .comments {

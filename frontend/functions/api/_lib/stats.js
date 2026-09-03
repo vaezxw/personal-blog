@@ -1,4 +1,5 @@
 import { heatScore } from './notifications.js'
+import { getAttachmentsForPosts } from './attachments.js'
 
 export async function getCommentCount(db, postId) {
   const row = await db
@@ -29,6 +30,12 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
   if (!posts?.length) return []
   const ids = posts.map((p) => p.id)
   const commentMap = await getCommentCountsForPosts(db, ids)
+  let attachmentMap = Object.create(null)
+  try {
+    attachmentMap = await getAttachmentsForPosts(db, ids)
+  } catch {
+    for (const id of ids) attachmentMap[id] = []
+  }
 
   let likedSet = new Set()
   let favoritedSet = new Set()
@@ -65,6 +72,7 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
       favoriteCount,
       clickCount,
       commentCount,
+      attachments: attachmentMap[p.id] || [],
       heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
       likedByMe: likedSet.has(p.id),
       favoritedByMe: favoritedSet.has(p.id),

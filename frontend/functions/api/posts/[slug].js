@@ -1,4 +1,5 @@
 import { canManagePost, mapPost, optionalUser, requireUser, simpleMarkdown } from '../_lib/auth.js'
+import { deletePostAttachments, replacePostAttachments } from '../_lib/attachments.js'
 import { notifyFollowersOfNewPost } from '../_lib/postFollowNotify.js'
 import { enrichPosts } from '../_lib/stats.js'
 import { corsHeaders, empty, json, readJson } from '../_lib/response.js'
@@ -97,6 +98,10 @@ export async function onRequest(context) {
         .bind(title, slug, excerpt, content, published, visibility, updatedAt, param)
         .run()
 
+      if (body.attachments !== undefined) {
+        await replacePostAttachments(env.DB, param, body.attachments)
+      }
+
       // First publish, or private → visible: notify followers once (idempotent)
       const becameVisible =
         published === 1 &&
@@ -128,6 +133,7 @@ export async function onRequest(context) {
   }
 
   if (request.method === 'DELETE') {
+    await deletePostAttachments(env.DB, env.MEDIA, param)
     await env.DB.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM post_favorites WHERE post_id = ?').bind(param).run()
     await env.DB.prepare('DELETE FROM post_follow_emails WHERE post_id = ?').bind(param).run()

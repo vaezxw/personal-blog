@@ -193,6 +193,39 @@
         <p v-if="mdImportOk" class="ok">{{ mdImportOk }}</p>
         <p v-if="mdImportError" class="error">{{ mdImportError }}</p>
 
+        <div class="attach-panel">
+          <div class="attach-head">
+            <div>
+              <strong>{{ t('admin.attachments') }}</strong>
+              <p class="muted upload-note">{{ t('admin.attachmentsHint') }}</p>
+            </div>
+            <label class="md-upload btn ghost" :class="{ busy: attachBusy }">
+              <input
+                ref="attachInputRef"
+                type="file"
+                multiple
+                accept=".pdf,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.json,application/pdf,application/zip"
+                :disabled="attachBusy || attachments.length >= 20"
+                @change="onAttachmentFiles"
+              />
+              {{ attachBusy ? t('admin.attachmentsUploading') : t('admin.attachmentsUpload') }}
+            </label>
+          </div>
+          <p v-if="attachError" class="error">{{ attachError }}</p>
+          <ul v-if="attachments.length" class="attach-list">
+            <li v-for="(file, idx) in attachments" :key="file.id || file.key || idx">
+              <div class="attach-meta">
+                <strong>{{ file.name }}</strong>
+                <span class="muted">{{ formatFileSize(file.size) }}</span>
+              </div>
+              <button class="btn ghost danger" type="button" @click="removeAttachment(idx)">
+                {{ t('admin.attachmentsRemove') }}
+              </button>
+            </li>
+          </ul>
+          <p v-else class="muted attach-empty">{{ t('admin.attachmentsEmpty') }}</p>
+        </div>
+
         <div class="composer-foot">
           <div class="composer-opts">
             <label class="check">
@@ -396,6 +429,7 @@ import {
   setStoredUser,
   updatePost,
   updateProfile,
+  uploadAttachment,
   uploadAvatar,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
@@ -420,6 +454,10 @@ const contentMode = ref('rich')
 /** Markdown 工作区：edit | split | preview */
 const mdPane = ref('edit')
 const mdInputRef = ref(null)
+const attachInputRef = ref(null)
+const attachments = ref([])
+const attachBusy = ref(false)
+const attachError = ref('')
 const mdImportOk = ref('')
 const mdImportError = ref('')
 const statsLoading = ref(false)
@@ -670,6 +708,49 @@ function visibilityLabel(visibility) {
   return t('admin.visibilityPublicShort')
 }
 
+function formatFileSize(n) {
+  const size = Number(n || 0)
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function removeAttachment(index) {
+  attachments.value = attachments.value.filter((_, i) => i !== index)
+}
+
+async function onAttachmentFiles(event) {
+  const input = event.target
+  const files = [...(input?.files || [])]
+  attachError.value = ''
+  if (!files.length) return
+  const room = Math.max(0, 20 - attachments.value.length)
+  if (!room) {
+    attachError.value = t('admin.attachmentsLimit')
+    if (input) input.value = ''
+    return
+  }
+  attachBusy.value = true
+  try {
+    for (const file of files.slice(0, room)) {
+      const data = await uploadAttachment(file)
+      attachments.value.push({
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        key: data.key,
+        url: data.url,
+        name: data.filename || file.name,
+        mime: data.mime || file.type || 'application/octet-stream',
+        size: data.size || file.size || 0,
+      })
+    }
+  } catch (err) {
+    attachError.value = err.message || t('admin.attachmentsFailed')
+  } finally {
+    attachBusy.value = false
+    if (input) input.value = ''
+  }
+}
+
 function resetForm() {
   editingId.value = ''
   contentMode.value = 'rich'
@@ -680,11 +761,14 @@ function resetForm() {
   form.content = ''
   form.published = true
   form.visibility = 'public'
+  attachments.value = []
+  attachError.value = ''
   formError.value = ''
   formOk.value = ''
   mdImportOk.value = ''
   mdImportError.value = ''
   if (mdInputRef.value) mdInputRef.value.value = ''
+  if (attachInputRef.value) attachInputRef.value.value = ''
 }
 
 function editPost(post) {
@@ -698,6 +782,15 @@ function editPost(post) {
     contentMode.value === 'rich' ? contentForEditor(post.content) : post.content
   form.published = post.published
   form.visibility = post.visibility || 'public'
+  attachments.value = (post.attachments || []).map((a) => ({
+    id: a.id,
+    key: a.key,
+    url: a.url,
+    name: a.name,
+    mime: a.mime,
+    size: a.size,
+  }))
+  attachError.value = ''
   formOk.value = ''
   formError.value = ''
   studioTab.value = 'compose'
@@ -733,6 +826,14 @@ async function submitPost() {
       content: form.content,
       published: form.published,
       visibility: form.visibility || 'public',
+      attachments: attachments.value.map((a) => ({
+        id: a.id,
+        key: a.key,
+        url: a.url,
+        name: a.name,
+        mime: a.mime,
+        size: a.size,
+      })),
     }
     if (editingId.value) {
       await updatePost(editingId.value, payload)
@@ -1103,6 +1204,67 @@ onMounted(restoreSession)
 .upload-note {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
+}
+
+.attach-panel {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 3%);
+}
+
+.attach-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.attach-head strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.attach-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.attach-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.attach-meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.attach-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-empty {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+}
+
+.md-upload.busy {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .md-upload {

@@ -27,6 +27,14 @@ function parseRange(rangeHeader, size) {
   return { start, end }
 }
 
+function contentDisposition(filename) {
+  const raw = String(filename || 'download')
+    .replace(/[\r\n"]+/g, '_')
+    .slice(0, 180)
+  const ascii = raw.replace(/[^\x20-\x7E]+/g, '_') || 'download'
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(raw)}`
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context
 
@@ -51,6 +59,11 @@ export async function onRequest(context) {
   headers.set('Cache-Control', 'public, max-age=31536000, immutable')
   headers.set('Access-Control-Allow-Origin', '*')
   headers.set('Accept-Ranges', 'bytes')
+
+  const downloadName = new URL(request.url).searchParams.get('download')
+  if (downloadName) {
+    headers.set('Content-Disposition', contentDisposition(downloadName))
+  }
 
   if (request.method === 'HEAD') {
     headers.set('Content-Length', String(size))

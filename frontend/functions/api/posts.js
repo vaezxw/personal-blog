@@ -1,4 +1,5 @@
 import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
+import { replacePostAttachments } from './_lib/attachments.js'
 import { newId } from './_lib/crypto.js'
 import { notifyFollowersOfNewPost } from './_lib/postFollowNotify.js'
 import { enrichPosts } from './_lib/stats.js'
@@ -91,6 +92,10 @@ export async function onRequest(context) {
       )
         .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now)
         .run()
+
+      if (body.attachments !== undefined) {
+        await replacePostAttachments(env.DB, id, body.attachments)
+      }
 
       if (published) {
         await notifyFollowersOfNewPost(env.DB, {
