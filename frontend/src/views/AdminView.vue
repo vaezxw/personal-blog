@@ -9,10 +9,13 @@
     <div v-if="!user" class="panel studio-gate">
       <p>{{ t('admin.pleaseLogin') }}</p>
       <div class="studio-gate-actions">
-        <RouterLink class="btn" :to="{ name: 'me', query: { next: '/admin' } }">
+        <RouterLink class="btn" :to="{ name: 'me', query: { next: adminReturnPath } }">
           {{ t('admin.login') }}
         </RouterLink>
-        <RouterLink class="btn ghost" :to="{ name: 'me', query: { tab: 'register', next: '/admin' } }">
+        <RouterLink
+          class="btn ghost"
+          :to="{ name: 'me', query: { tab: 'register', next: adminReturnPath } }"
+        >
           {{ t('admin.register') }}
         </RouterLink>
       </div>
@@ -66,7 +69,15 @@
         @submit.prevent="submitPost"
       >
         <div class="composer-head">
-          <h2>{{ editingId ? t('admin.editPost') : t('admin.newPost') }}</h2>
+          <h2>
+            {{
+              editingId
+                ? t('admin.editPost')
+                : form.repostOfSlug
+                  ? t('admin.repostCompose')
+                  : t('admin.newPost')
+            }}
+          </h2>
           <label class="md-upload btn ghost">
             <input
               ref="mdInputRef"
@@ -76,6 +87,32 @@
             />
             {{ t('admin.uploadMd') }}
           </label>
+        </div>
+
+        <div v-if="repostSource" class="repost-compose-card">
+          <div class="repost-compose-head">
+            <span class="repost-label">{{ t('admin.repostAttached') }}</span>
+            <button
+              v-if="!editingId"
+              class="btn ghost"
+              type="button"
+              @click="clearRepostSource"
+            >
+              {{ t('admin.repostClear') }}
+            </button>
+          </div>
+          <RouterLink
+            class="repost-card"
+            :to="{ name: 'post', params: { slug: repostSource.slug } }"
+            target="_blank"
+          >
+            <strong>{{ repostSource.title }}</strong>
+            <span class="muted">
+              @{{ repostSource.authorUsername }}
+              <template v-if="repostSource.excerpt"> · {{ repostSource.excerpt }}</template>
+            </span>
+          </RouterLink>
+          <p class="muted upload-note">{{ t('admin.repostComposeHint') }}</p>
         </div>
 
         <div class="composer-grid">
@@ -240,23 +277,6 @@
                 <option value="private">{{ t('admin.visibilityPrivate') }}</option>
               </select>
             </label>
-            <label class="vis-field repost-field">
-              <span>{{ t('admin.repost') }}</span>
-              <select v-model="form.repostOfSlug">
-                <option value="">{{ t('admin.repostPick') }}</option>
-                <option v-for="p in repostCandidates" :key="p.id" :value="p.slug">
-                  {{ p.title }} · @{{ p.authorUsername }}
-                </option>
-              </select>
-              <button
-                v-if="form.repostOfSlug"
-                class="btn ghost"
-                type="button"
-                @click="form.repostOfSlug = ''"
-              >
-                {{ t('admin.repostClear') }}
-              </button>
-            </label>
           </div>
           <div class="row">
             <button class="btn" type="submit" :disabled="saving">
@@ -274,7 +294,6 @@
           </div>
         </div>
         <p class="muted upload-note">{{ t('admin.visibilityHint') }}</p>
-        <p class="muted upload-note">{{ t('admin.repostHint') }}</p>
         <p v-if="formError" class="error">{{ formError }}</p>
         <p v-if="formOk" class="ok">{{ formOk }}</p>
       </form>
@@ -436,12 +455,13 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   createPost,
   deletePost,
   fetchAllPosts,
   fetchMyStats,
-  fetchPosts,
+  fetchPost,
   getStoredUser,
   logout,
   me,
@@ -459,6 +479,8 @@ import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.j
 import { renderMermaidBlocks } from '../utils/mermaidBlocks.js'
 
 const { t } = useLocale()
+const route = useRoute()
+const router = useRouter()
 
 const user = ref(getStoredUser())
 const studioTab = ref('compose')
@@ -516,20 +538,12 @@ const form = reactive({
   repostOfSlug: '',
 })
 
-const publicPosts = ref([])
+/** Attached source post for republish (card preview). */
+const repostSource = ref(null)
 
-const repostCandidates = computed(() => {
-  const myId = user.value?.id
-  const editingSlug = editingId.value
-    ? posts.value.find((p) => p.id === editingId.value)?.slug
-    : ''
-  return (publicPosts.value || []).filter((p) => {
-    if (!p?.slug || !p.published) return false
-    if (p.authorId === myId || p.authorUsername === user.value?.username) return false
-    if (editingSlug && p.slug === editingSlug) return false
-    if (form.slug && p.slug === form.slug) return false
-    return true
-  })
+const adminReturnPath = computed(() => {
+  const slug = String(route.query.repost || '').trim()
+  return slug ? `/admin?repost=${slug}` : '/admin'
 })
 
 const previewHtml = computed(() => {
@@ -798,6 +812,7 @@ function resetForm() {
   form.published = true
   form.visibility = 'public'
   form.repostOfSlug = ''
+  repostSource.value = null
   attachments.value = []
   attachError.value = ''
   formError.value = ''
@@ -806,6 +821,80 @@ function resetForm() {
   mdImportError.value = ''
   if (mdInputRef.value) mdInputRef.value.value = ''
   if (attachInputRef.value) attachInputRef.value.value = ''
+}
+
+function clearRepostSource() {
+  form.repostOfSlug = ''
+  repostSource.value = null
+}
+
+function slugifyHint(title) {
+  const raw = String(title || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u4e00-\u9fff-]+/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+  return raw.slice(0, 48) || 'repost'
+}
+
+async function applyRepostFromRoute() {
+  const slug = String(route.query.repost || '').trim()
+  if (!slug || !user.value) return
+
+  studioTab.value = 'compose'
+  editingId.value = ''
+  contentMode.value = 'rich'
+  mdPane.value = 'edit'
+  form.title = ''
+  form.excerpt = ''
+  form.content = ''
+  form.published = true
+  form.visibility = 'public'
+  form.repostOfSlug = slug
+  attachments.value = []
+  formError.value = ''
+  formOk.value = ''
+  mdImportOk.value = ''
+  mdImportError.value = ''
+
+  try {
+    const source = await fetchPost(slug)
+    if (!source?.published || source.visibility === 'private') {
+      form.repostOfSlug = ''
+      repostSource.value = null
+      formError.value = t('admin.repostUnavailable')
+      return
+    }
+    if (
+      (source.authorId && source.authorId === user.value.id) ||
+      (source.authorUsername && source.authorUsername === user.value.username)
+    ) {
+      form.repostOfSlug = ''
+      repostSource.value = null
+      formError.value = t('admin.repostOwnDenied')
+      return
+    }
+    repostSource.value = {
+      slug: source.slug,
+      title: source.title,
+      excerpt: source.excerpt || '',
+      authorUsername: source.authorUsername || '',
+    }
+    form.slug = `r-${slugifyHint(source.slug || source.title)}-${Date.now().toString(36).slice(-4)}`
+  } catch (err) {
+    form.repostOfSlug = ''
+    repostSource.value = null
+    formError.value = err.message || t('admin.repostUnavailable')
+  } finally {
+    // Drop query so refresh / navigation won't re-trigger
+    if (route.query.repost) {
+      const q = { ...route.query }
+      delete q.repost
+      router.replace({ name: 'admin', query: q })
+    }
+  }
 }
 
 function editPost(post) {
@@ -820,6 +909,14 @@ function editPost(post) {
   form.published = post.published
   form.visibility = post.visibility || 'public'
   form.repostOfSlug = post.repostOf?.slug || ''
+  repostSource.value = post.repostOf
+    ? {
+        slug: post.repostOf.slug,
+        title: post.repostOf.title,
+        excerpt: post.repostOf.excerpt || '',
+        authorUsername: post.repostOf.authorUsername || '',
+      }
+    : null
   attachments.value = (post.attachments || []).map((a) => ({
     id: a.id,
     key: a.key,
@@ -832,14 +929,6 @@ function editPost(post) {
   formOk.value = ''
   formError.value = ''
   studioTab.value = 'compose'
-}
-
-async function loadPublicPostsForRepost() {
-  try {
-    publicPosts.value = await fetchPosts()
-  } catch {
-    publicPosts.value = []
-  }
 }
 
 async function loadPosts() {
@@ -890,7 +979,7 @@ async function submitPost() {
       formOk.value = t('admin.created')
     }
     resetForm()
-    await Promise.all([loadPosts(), loadPublicPostsForRepost()])
+    await loadPosts()
     studioTab.value = 'library'
   } catch (err) {
     formError.value = err.message || t('admin.saveFailed')
@@ -915,11 +1004,19 @@ async function restoreSession() {
   try {
     const data = await me()
     applyUser(data.user)
-    await Promise.all([loadPosts(), loadStats(), loadPublicPostsForRepost()])
+    await Promise.all([loadPosts(), loadStats()])
+    await applyRepostFromRoute()
   } catch {
     applyUser(null)
   }
 }
+
+watch(
+  () => route.query.repost,
+  (slug) => {
+    if (slug && user.value) applyRepostFromRoute()
+  },
+)
 
 onMounted(restoreSession)
 </script>
@@ -1256,6 +1353,46 @@ onMounted(restoreSession)
 .repost-field select {
   min-width: 12rem;
   max-width: min(22rem, 100%);
+}
+
+.repost-compose-card {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--surface) 90%, var(--accent));
+}
+
+.repost-compose-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.repost-compose-card .repost-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.repost-compose-card .repost-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.45rem;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+}
+
+.repost-compose-card .repost-card:hover {
+  border-color: var(--accent);
 }
 
 .upload-note {

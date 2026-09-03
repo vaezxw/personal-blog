@@ -102,6 +102,9 @@ export async function onRequest(context) {
       if ((body.repostOfSlug || body.repostOfPostId) && !source) {
         return json(400, { error: 'Source post not found or not published' })
       }
+      if (source?.author_id && source.author_id === user.id) {
+        return json(400, { error: 'Cannot republish your own post' })
+      }
 
       const now = new Date().toISOString()
       const id = newId('p')

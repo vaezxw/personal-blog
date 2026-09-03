@@ -112,6 +112,9 @@ export async function onRequest(context) {
         if (resolved?.error) return json(400, { error: resolved.error })
         if (resolved?.clear) repostOf = null
         else if (resolved?.source) {
+          if (resolved.source.author_id === user.id) {
+            return json(400, { error: 'Cannot republish your own post' })
+          }
           source = resolved.source
           repostOf = source.id
         }

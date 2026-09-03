@@ -31,19 +31,6 @@
       </h1>
     </header>
 
-    <RouterLink
-      v-if="post.repostOf"
-      class="repost-card"
-      :to="{ name: 'post', params: { slug: post.repostOf.slug } }"
-    >
-      <span class="repost-label">{{ t('post.repostSource') }}</span>
-      <strong>{{ post.repostOf.title }}</strong>
-      <span class="muted">
-        @{{ post.repostOf.authorUsername }}
-        <template v-if="post.repostOf.excerpt"> · {{ post.repostOf.excerpt }}</template>
-      </span>
-    </RouterLink>
-
     <div id="likes" class="engage-bar" :class="{ flash: highlightTarget === 'likes' }">
       <span class="engage-stat muted">{{ t('post.views', { count: post.viewCount || 0 }) }}</span>
       <span class="engage-stat muted">{{ t('post.commentsCount', { count: post.commentCount || comments.length || 0 }) }}</span>
@@ -76,6 +63,14 @@
       >
         <span aria-hidden="true">{{ post.favoritedByMe ? '★' : '☆' }}</span>
         {{ t('post.favorites', { count: post.favoriteCount || 0 }) }}
+      </button>
+      <button
+        v-if="canRepost"
+        type="button"
+        class="share-btn repost-trigger"
+        @click="goRepost"
+      >
+        {{ t('post.repostAction') }}
       </button>
       <div class="share-wrap" ref="shareWrapRef">
         <button
@@ -139,6 +134,9 @@
       <p v-else-if="favoriteHint" class="muted like-hint">
         <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToFavorite') }}
       </p>
+      <p v-else-if="repostHint" class="muted like-hint">
+        <RouterLink :to="repostLoginTo">{{ t('post.login') }}</RouterLink>{{ t('post.loginToRepost') }}
+      </p>
       <p v-else-if="engageHint" class="muted like-hint" :class="{ ok: engageHintOk }">{{ engageHint }}</p>
     </div>
 
@@ -190,6 +188,19 @@
     </Teleport>
 
     <div ref="proseEl" class="prose" v-html="renderedHtml"></div>
+
+    <RouterLink
+      v-if="post.repostOf"
+      class="repost-card"
+      :to="{ name: 'post', params: { slug: post.repostOf.slug } }"
+    >
+      <span class="repost-label">{{ t('post.repostSource') }}</span>
+      <strong>{{ post.repostOf.title }}</strong>
+      <span class="muted">
+        @{{ post.repostOf.authorUsername }}
+        <template v-if="post.repostOf.excerpt"> · {{ post.repostOf.excerpt }}</template>
+      </span>
+    </RouterLink>
 
     <section
       v-if="post.attachments?.length"
@@ -407,7 +418,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   createComment,
   deleteComment,
@@ -445,6 +456,7 @@ const props = defineProps({
 })
 
 const route = useRoute()
+const router = useRouter()
 const { t, formatDate } = useLocale()
 
 const post = ref(null)
@@ -465,6 +477,7 @@ const dislikeBusy = ref(false)
 const dislikeHint = ref(false)
 const favoriteBusy = ref(false)
 const favoriteHint = ref(false)
+const repostHint = ref(false)
 const shareOpen = ref(false)
 const shareHint = ref('')
 const shareOk = ref(false)
@@ -641,6 +654,38 @@ const authorLetter = computed(() =>
   (post.value?.authorUsername || '?').slice(0, 1).toUpperCase(),
 )
 
+/** Others' published posts can be republished (not your own). */
+const canRepost = computed(() => {
+  const p = post.value
+  if (!p?.slug || !p.published) return false
+  if (p.visibility && p.visibility !== 'public') return false
+  const meUser = currentUser.value
+  if (!meUser) return true
+  if (p.authorId && meUser.id && p.authorId === meUser.id) return false
+  if (p.authorUsername && meUser.username && p.authorUsername === meUser.username) return false
+  return true
+})
+
+const repostLoginTo = computed(() => ({
+  name: 'me',
+  query: {
+    next: `/admin?repost=${props.slug}`,
+  },
+}))
+
+function goRepost() {
+  repostHint.value = false
+  if (!currentUser.value) {
+    repostHint.value = true
+    router.push(repostLoginTo.value)
+    return
+  }
+  router.push({
+    name: 'admin',
+    query: { repost: props.slug },
+  })
+}
+
 const commentThreads = computed(() => {
   const roots = []
   const repliesByParent = new Map()
@@ -703,6 +748,7 @@ async function load() {
   likeHint.value = false
   dislikeHint.value = false
   favoriteHint.value = false
+  repostHint.value = false
   try {
     post.value = await fetchPost(props.slug)
     await Promise.all([loadComments(), trackView()])
@@ -1182,7 +1228,7 @@ watch(
 .repost-card {
   display: grid;
   gap: 0.25rem;
-  margin: 0 0 1.25rem;
+  margin: 1.25rem 0 0;
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
