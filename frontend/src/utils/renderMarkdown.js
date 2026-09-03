@@ -56,12 +56,44 @@ function restoreYuqueDiagrams(md) {
   )
 }
 
+/** tips / info / warning / success / danger / colorN → CSS class */
+function calloutClassName(type) {
+  const t = String(type || '').toLowerCase()
+  if (/^color\d+$/.test(t)) return `callout-color ${t}`
+  if (t === 'tip') return 'callout-tips'
+  if (['tips', 'info', 'warning', 'success', 'danger'].includes(t)) {
+    return `callout-${t}`
+  }
+  return 'callout-tips'
+}
+
+/**
+ * 语雀提示块：:::tips / :::danger / :::color5 ... :::
+ * 转为 HTML，内部 Markdown 先解析，避免 ::: 泄漏成正文
+ */
+function restoreYuqueCallouts(md) {
+  return String(md || '').replace(
+    /^:::([a-zA-Z][\w-]*)[ \t]*([^\n]*)\n([\s\S]*?)^:::[ \t]*$/gm,
+    (_, type, inline, body) => {
+      const parts = []
+      if (String(inline || '').trim()) parts.push(String(inline).trim())
+      if (String(body || '').trim()) parts.push(String(body).trim())
+      const innerMd = parts.join('\n\n')
+      const innerHtml = innerMd ? marked.parse(innerMd, { async: false }) : ''
+      const cls = calloutClassName(type)
+      return `\n\n<div class="callout ${cls}" data-callout="${escapeHtml(type)}">${innerHtml}</div>\n\n`
+    },
+  )
+}
+
 export function normalizeMarkdown(md) {
-  return restoreYuqueDiagrams(
-    String(md || '')
-      .replace(/^\uFEFF/, '')
-      .replace(/\u00a0/g, ' ')
-      .replace(/\r\n?/g, '\n'),
+  return restoreYuqueCallouts(
+    restoreYuqueDiagrams(
+      String(md || '')
+        .replace(/^\uFEFF/, '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\r\n?/g, '\n'),
+    ),
   )
 }
 

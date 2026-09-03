@@ -1,5 +1,4 @@
-import { marked } from 'marked'
-import { normalizeMarkdown } from './renderMarkdown.js'
+import { renderMarkdown } from './renderMarkdown.js'
 
 /** wangEditor / 富文本保存的正文几乎都以块级标签开头 */
 const RICH_HTML_START_RE =
@@ -21,9 +20,7 @@ export function isHtmlContent(content) {
 
 /** Markdown → HTML（用于导入 .md 或在富文本编辑器中打开旧文） */
 export function markdownToHtml(md) {
-  const src = normalizeMarkdown(md)
-  if (!src.trim()) return ''
-  return marked.parse(src, { async: false })
+  return renderMarkdown(md)
 }
 
 /** 文章展示：自动识别 Markdown / HTML */

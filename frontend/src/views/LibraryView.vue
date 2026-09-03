@@ -184,6 +184,11 @@ watch(
 .library-list {
   display: grid;
   gap: 0.75rem;
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable;
 }
 
 .post-row {
