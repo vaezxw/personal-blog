@@ -851,6 +851,12 @@ h2 {
   color: var(--prose-ink);
 }
 
+/* 语雀等导出的 <font style="color:#1f2328"> 在暗色主题下会「隐形」 */
+.prose font,
+.prose [style*='color'] {
+  color: inherit !important;
+}
+
 .prose a {
   color: var(--accent);
   text-decoration: underline;
