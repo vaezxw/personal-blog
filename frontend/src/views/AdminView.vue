@@ -240,6 +240,23 @@
                 <option value="private">{{ t('admin.visibilityPrivate') }}</option>
               </select>
             </label>
+            <label class="vis-field repost-field">
+              <span>{{ t('admin.repost') }}</span>
+              <select v-model="form.repostOfSlug">
+                <option value="">{{ t('admin.repostPick') }}</option>
+                <option v-for="p in repostCandidates" :key="p.id" :value="p.slug">
+                  {{ p.title }} · @{{ p.authorUsername }}
+                </option>
+              </select>
+              <button
+                v-if="form.repostOfSlug"
+                class="btn ghost"
+                type="button"
+                @click="form.repostOfSlug = ''"
+              >
+                {{ t('admin.repostClear') }}
+              </button>
+            </label>
           </div>
           <div class="row">
             <button class="btn" type="submit" :disabled="saving">
@@ -257,6 +274,7 @@
           </div>
         </div>
         <p class="muted upload-note">{{ t('admin.visibilityHint') }}</p>
+        <p class="muted upload-note">{{ t('admin.repostHint') }}</p>
         <p v-if="formError" class="error">{{ formError }}</p>
         <p v-if="formOk" class="ok">{{ formOk }}</p>
       </form>
@@ -423,6 +441,7 @@ import {
   deletePost,
   fetchAllPosts,
   fetchMyStats,
+  fetchPosts,
   getStoredUser,
   logout,
   me,
@@ -494,6 +513,23 @@ const form = reactive({
   content: '',
   published: true,
   visibility: 'public',
+  repostOfSlug: '',
+})
+
+const publicPosts = ref([])
+
+const repostCandidates = computed(() => {
+  const myId = user.value?.id
+  const editingSlug = editingId.value
+    ? posts.value.find((p) => p.id === editingId.value)?.slug
+    : ''
+  return (publicPosts.value || []).filter((p) => {
+    if (!p?.slug || !p.published) return false
+    if (p.authorId === myId || p.authorUsername === user.value?.username) return false
+    if (editingSlug && p.slug === editingSlug) return false
+    if (form.slug && p.slug === form.slug) return false
+    return true
+  })
 })
 
 const previewHtml = computed(() => {
@@ -761,6 +797,7 @@ function resetForm() {
   form.content = ''
   form.published = true
   form.visibility = 'public'
+  form.repostOfSlug = ''
   attachments.value = []
   attachError.value = ''
   formError.value = ''
@@ -782,6 +819,7 @@ function editPost(post) {
     contentMode.value === 'rich' ? contentForEditor(post.content) : post.content
   form.published = post.published
   form.visibility = post.visibility || 'public'
+  form.repostOfSlug = post.repostOf?.slug || ''
   attachments.value = (post.attachments || []).map((a) => ({
     id: a.id,
     key: a.key,
@@ -794,6 +832,14 @@ function editPost(post) {
   formOk.value = ''
   formError.value = ''
   studioTab.value = 'compose'
+}
+
+async function loadPublicPostsForRepost() {
+  try {
+    publicPosts.value = await fetchPosts()
+  } catch {
+    publicPosts.value = []
+  }
 }
 
 async function loadPosts() {
@@ -826,6 +872,7 @@ async function submitPost() {
       content: form.content,
       published: form.published,
       visibility: form.visibility || 'public',
+      repostOfSlug: form.repostOfSlug || '',
       attachments: attachments.value.map((a) => ({
         id: a.id,
         key: a.key,
@@ -843,7 +890,7 @@ async function submitPost() {
       formOk.value = t('admin.created')
     }
     resetForm()
-    await loadPosts()
+    await Promise.all([loadPosts(), loadPublicPostsForRepost()])
     studioTab.value = 'library'
   } catch (err) {
     formError.value = err.message || t('admin.saveFailed')
@@ -868,7 +915,7 @@ async function restoreSession() {
   try {
     const data = await me()
     applyUser(data.user)
-    await Promise.all([loadPosts(), loadStats()])
+    await Promise.all([loadPosts(), loadStats(), loadPublicPostsForRepost()])
   } catch {
     applyUser(null)
   }
@@ -1199,6 +1246,16 @@ onMounted(restoreSession)
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 88%, #000);
   color: var(--text);
+}
+
+.repost-field {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.repost-field select {
+  min-width: 12rem;
+  max-width: min(22rem, 100%);
 }
 
 .upload-note {

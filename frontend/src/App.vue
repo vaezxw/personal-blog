@@ -183,7 +183,12 @@
       <RouterView />
     </main>
     <footer class="site-footer">
-      <p>{{ t('footer') }}</p>
+      <div class="footer-inner">
+        <p class="footer-brand">{{ t('footer.brand') }}</p>
+        <p>{{ t('footer.disclaimer') }}</p>
+        <p>{{ t('footer.copyright') }}</p>
+        <p class="footer-meta">{{ t('footer.contact') }}</p>
+      </div>
     </footer>
     <BackToTop />
   </div>
@@ -231,8 +236,12 @@ function notifyText(n) {
   if (n.type === 'follow') return t('notify.follow', { user: n.actorUsername || 'user' })
   if (n.type === 'reply') return t('notify.reply', { user: n.actorUsername || 'user' })
   if (n.type === 'message') return t('notify.message', { user: n.actorUsername || 'user' })
+  if (n.type === 'mention') return t('notify.mention', { user: n.actorUsername || 'user' })
   if (n.type === 'post') {
     return t('notify.post', { user: n.actorUsername || 'user', title: n.postTitle || '' })
+  }
+  if (n.type === 'repost') {
+    return t('notify.repost', { user: n.actorUsername || 'user', title: n.postTitle || '' })
   }
   const key = n.type === 'like' ? 'notify.like' : 'notify.comment'
   return t(key, { user: n.actorUsername || 'user', title: n.postTitle || '' })
@@ -249,9 +258,15 @@ function notifyHref(n) {
   }
   const slug = n?.postSlug
   if (!slug) return '#'
-  if (n?.type === 'post') return `/post/${encodeURIComponent(slug)}`
+  if (n?.type === 'post' || n?.type === 'repost') return `/post/${encodeURIComponent(slug)}`
   const hash =
-    n?.type === 'like' ? '#likes' : n?.commentId ? `#comment-${n.commentId}` : '#comments'
+    n?.type === 'like'
+      ? '#likes'
+      : n?.type === 'mention' && n?.commentId
+        ? `#comment-${n.commentId}`
+        : n?.commentId
+          ? `#comment-${n.commentId}`
+          : '#comments'
   return `/post/${encodeURIComponent(slug)}${hash}`
 }
 

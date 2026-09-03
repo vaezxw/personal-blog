@@ -1,5 +1,4 @@
 import { mapPost, requireUser } from '../../_lib/auth.js'
-import { createNotification } from '../../_lib/notifications.js'
 import { enrichPosts } from '../../_lib/stats.js'
 import { empty, json } from '../../_lib/response.js'
 import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
@@ -16,7 +15,7 @@ export async function onRequest(context) {
 
   const slug = decodeURIComponent(params.slug || '')
   const post = await env.DB.prepare(
-    'SELECT id, author_id, published, visibility, like_count FROM posts WHERE slug = ?',
+    'SELECT id, author_id, published, visibility, like_count, dislike_count FROM posts WHERE slug = ?',
   )
     .bind(slug)
     .first()
@@ -27,57 +26,53 @@ export async function onRequest(context) {
   }
 
   const existing = await env.DB.prepare(
-    'SELECT user_id FROM post_likes WHERE user_id = ? AND post_id = ?',
+    'SELECT user_id FROM post_dislikes WHERE user_id = ? AND post_id = ?',
   )
     .bind(user.id, post.id)
     .first()
 
   const now = new Date().toISOString()
-  let liked = false
+  let disliked = false
 
   if (existing) {
-    await env.DB.prepare('DELETE FROM post_likes WHERE user_id = ? AND post_id = ?')
+    await env.DB.prepare('DELETE FROM post_dislikes WHERE user_id = ? AND post_id = ?')
       .bind(user.id, post.id)
       .run()
     await env.DB.prepare(
-      'UPDATE posts SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?',
+      'UPDATE posts SET dislike_count = CASE WHEN dislike_count > 0 THEN dislike_count - 1 ELSE 0 END WHERE id = ?',
     )
       .bind(post.id)
       .run()
-    liked = false
+    disliked = false
   } else {
-    // Mutual exclusion: remove dislike if present
-    const disliked = await env.DB.prepare(
-      'SELECT user_id FROM post_dislikes WHERE user_id = ? AND post_id = ?',
+    // Mutual exclusion: remove like if present
+    const liked = await env.DB.prepare(
+      'SELECT user_id FROM post_likes WHERE user_id = ? AND post_id = ?',
     )
       .bind(user.id, post.id)
       .first()
-    if (disliked) {
-      await env.DB.prepare('DELETE FROM post_dislikes WHERE user_id = ? AND post_id = ?')
+    if (liked) {
+      await env.DB.prepare('DELETE FROM post_likes WHERE user_id = ? AND post_id = ?')
         .bind(user.id, post.id)
         .run()
       await env.DB.prepare(
-        'UPDATE posts SET dislike_count = CASE WHEN dislike_count > 0 THEN dislike_count - 1 ELSE 0 END WHERE id = ?',
+        'UPDATE posts SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?',
       )
         .bind(post.id)
         .run()
     }
 
     await env.DB.prepare(
-      'INSERT INTO post_likes (user_id, post_id, created_at) VALUES (?, ?, ?)',
+      'INSERT INTO post_dislikes (user_id, post_id, created_at) VALUES (?, ?, ?)',
     )
       .bind(user.id, post.id, now)
       .run()
-    await env.DB.prepare('UPDATE posts SET like_count = like_count + 1 WHERE id = ?')
+    await env.DB.prepare(
+      'UPDATE posts SET dislike_count = COALESCE(dislike_count, 0) + 1 WHERE id = ?',
+    )
       .bind(post.id)
       .run()
-    liked = true
-    await createNotification(env.DB, {
-      userId: post.author_id,
-      actorId: user.id,
-      type: 'like',
-      postId: post.id,
-    })
+    disliked = true
   }
 
   const row = await env.DB.prepare(
@@ -92,14 +87,14 @@ export async function onRequest(context) {
 
   const [enriched] = await enrichPosts(env.DB, [mapPost(row)], { userId: user.id })
   return json(200, {
-    liked,
-    likeCount: enriched.likeCount,
+    disliked,
     dislikeCount: enriched.dislikeCount,
+    likeCount: enriched.likeCount,
+    likedByMe: enriched.likedByMe,
+    dislikedByMe: enriched.dislikedByMe,
     viewCount: enriched.viewCount,
     clickCount: enriched.clickCount,
     commentCount: enriched.commentCount,
     heat: enriched.heat,
-    likedByMe: enriched.likedByMe,
-    dislikedByMe: enriched.dislikedByMe,
   })
 }

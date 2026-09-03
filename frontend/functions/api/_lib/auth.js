@@ -41,8 +41,10 @@ export function mapPost(row) {
     authorAvatarUrl: row.author_avatar_url || null,
     viewCount: Number(row.view_count || 0),
     likeCount: Number(row.like_count || 0),
+    dislikeCount: Number(row.dislike_count || 0),
     favoriteCount: Number(row.favorite_count || 0),
     clickCount: Number(row.click_count || 0),
+    repostOfPostId: row.repost_of_post_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

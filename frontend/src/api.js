@@ -147,9 +147,26 @@ export function togglePostLike(slug) {
   })
 }
 
+export function togglePostDislike(slug) {
+  return request(`/api/posts/${encodeURIComponent(slug)}/dislike`, {
+    method: 'POST',
+  })
+}
+
 export function togglePostFavorite(slug) {
   return request(`/api/posts/${encodeURIComponent(slug)}/favorite`, {
     method: 'POST',
+  })
+}
+
+export function fetchFriends() {
+  return request('/api/friends')
+}
+
+export function sharePostViaDm(slug, { usernames, note } = {}) {
+  return request(`/api/posts/${encodeURIComponent(slug)}/share-dm`, {
+    method: 'POST',
+    body: JSON.stringify({ usernames, note }),
   })
 }
 

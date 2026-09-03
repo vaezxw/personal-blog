@@ -37,8 +37,40 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
     for (const id of ids) attachmentMap[id] = []
   }
 
+  // Load repost sources
+  const repostIds = [...new Set(posts.map((p) => p.repostOfPostId).filter(Boolean))]
+  const sourceMap = Object.create(null)
+  if (repostIds.length) {
+    const placeholders = repostIds.map(() => '?').join(',')
+    try {
+      const { results } = await db
+        .prepare(
+          `SELECT p.id, p.title, p.slug, p.excerpt, u.username AS author_username,
+                  u.avatar_url AS author_avatar_url
+           FROM posts p
+           JOIN users u ON u.id = p.author_id
+           WHERE p.id IN (${placeholders})`,
+        )
+        .bind(...repostIds)
+        .all()
+      for (const row of results || []) {
+        sourceMap[row.id] = {
+          id: row.id,
+          title: row.title,
+          slug: row.slug,
+          excerpt: row.excerpt || '',
+          authorUsername: row.author_username,
+          authorAvatarUrl: row.author_avatar_url || null,
+        }
+      }
+    } catch {
+      /* column may not exist before migration */
+    }
+  }
+
   let likedSet = new Set()
   let favoritedSet = new Set()
+  let dislikedSet = new Set()
   if (userId) {
     const placeholders = ids.map(() => '?').join(',')
     const [likeRes, favRes] = await Promise.all([
@@ -57,11 +89,23 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
     ])
     likedSet = new Set((likeRes.results || []).map((r) => r.post_id))
     favoritedSet = new Set((favRes.results || []).map((r) => r.post_id))
+    try {
+      const dislikeRes = await db
+        .prepare(
+          `SELECT post_id FROM post_dislikes WHERE user_id = ? AND post_id IN (${placeholders})`,
+        )
+        .bind(userId, ...ids)
+        .all()
+      dislikedSet = new Set((dislikeRes.results || []).map((r) => r.post_id))
+    } catch {
+      /* migration pending */
+    }
   }
 
   return posts.map((p) => {
     const viewCount = Number(p.viewCount || 0)
     const likeCount = Number(p.likeCount || 0)
+    const dislikeCount = Number(p.dislikeCount || 0)
     const favoriteCount = Number(p.favoriteCount || 0)
     const clickCount = Number(p.clickCount || 0)
     const commentCount = commentMap[p.id] || 0
@@ -69,13 +113,16 @@ export async function enrichPosts(db, posts, { userId = null } = {}) {
       ...p,
       viewCount,
       likeCount,
+      dislikeCount,
       favoriteCount,
       clickCount,
       commentCount,
       attachments: attachmentMap[p.id] || [],
-      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount }),
+      repostOf: p.repostOfPostId ? sourceMap[p.repostOfPostId] || null : null,
+      heat: heatScore({ viewCount, likeCount, commentCount, favoriteCount, dislikeCount }),
       likedByMe: likedSet.has(p.id),
       favoritedByMe: favoritedSet.has(p.id),
+      dislikedByMe: dislikedSet.has(p.id),
     }
   })
 }

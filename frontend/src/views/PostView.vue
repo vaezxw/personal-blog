@@ -25,10 +25,24 @@
       </p>
       <h1>
         {{ post.title }}
+        <span v-if="post.repostOf" class="vis-badge">{{ t('post.repostBadge') }}</span>
         <span v-if="post.visibility === 'friends'" class="vis-badge">{{ t('post.badgeFriends') }}</span>
         <span v-else-if="post.visibility === 'private'" class="vis-badge private">{{ t('post.badgePrivate') }}</span>
       </h1>
     </header>
+
+    <RouterLink
+      v-if="post.repostOf"
+      class="repost-card"
+      :to="{ name: 'post', params: { slug: post.repostOf.slug } }"
+    >
+      <span class="repost-label">{{ t('post.repostSource') }}</span>
+      <strong>{{ post.repostOf.title }}</strong>
+      <span class="muted">
+        @{{ post.repostOf.authorUsername }}
+        <template v-if="post.repostOf.excerpt"> · {{ post.repostOf.excerpt }}</template>
+      </span>
+    </RouterLink>
 
     <div id="likes" class="engage-bar" :class="{ flash: highlightTarget === 'likes' }">
       <span class="engage-stat muted">{{ t('post.views', { count: post.viewCount || 0 }) }}</span>
@@ -37,11 +51,21 @@
         type="button"
         class="like-btn"
         :class="{ active: post.likedByMe, busy: likeBusy }"
-        :disabled="likeBusy"
+        :disabled="likeBusy || dislikeBusy"
         @click="onLike"
       >
         <span aria-hidden="true">{{ post.likedByMe ? '♥' : '♡' }}</span>
         {{ t('post.likes', { count: post.likeCount || 0 }) }}
+      </button>
+      <button
+        type="button"
+        class="like-btn dislike-btn"
+        :class="{ active: post.dislikedByMe, busy: dislikeBusy }"
+        :disabled="dislikeBusy || likeBusy"
+        @click="onDislike"
+      >
+        <span aria-hidden="true">{{ post.dislikedByMe ? '▼' : '▽' }}</span>
+        {{ t('post.dislikes', { count: post.dislikeCount || 0 }) }}
       </button>
       <button
         type="button"
@@ -85,6 +109,10 @@
               <span class="share-ico" aria-hidden="true">𝕏</span>
               {{ t('share.x') }}
             </button>
+            <button type="button" class="share-action" @click="openDmShare">
+              <span class="share-ico" aria-hidden="true">✉</span>
+              {{ t('share.dm') }}
+            </button>
             <button
               v-if="nativeShareAvailable"
               type="button"
@@ -105,9 +133,46 @@
       <p v-if="likeHint" class="muted like-hint">
         <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToLike') }}
       </p>
+      <p v-else-if="dislikeHint" class="muted like-hint">
+        <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToDislike') }}
+      </p>
       <p v-else-if="favoriteHint" class="muted like-hint">
         <RouterLink to="/me">{{ t('post.login') }}</RouterLink>{{ t('post.loginToFavorite') }}
       </p>
+      <p v-else-if="engageHint" class="muted like-hint" :class="{ ok: engageHintOk }">{{ engageHint }}</p>
+    </div>
+
+    <div v-if="dmShareOpen" class="dm-share-mask" @click.self="dmShareOpen = false">
+      <div class="dm-share-panel panel geek-surface" role="dialog" :aria-label="t('share.dmTitle')">
+        <div class="dm-share-head">
+          <strong>{{ t('share.dmTitle') }}</strong>
+          <button type="button" class="btn ghost" @click="dmShareOpen = false">×</button>
+        </div>
+        <p class="muted">{{ t('share.dmHint') }}</p>
+        <p v-if="dmShareLoading" class="muted">{{ t('post.loading') }}</p>
+        <p v-else-if="!dmFriends.length" class="muted">{{ t('share.dmEmpty') }}</p>
+        <ul v-else class="dm-friend-list">
+          <li v-for="f in dmFriends" :key="f.id">
+            <label class="dm-friend">
+              <input v-model="dmSelected" type="checkbox" :value="f.username" />
+              <span>{{ f.username }}</span>
+            </label>
+          </li>
+        </ul>
+        <label class="dm-note">
+          <span>{{ t('share.dmNote') }}</span>
+          <input v-model="dmNote" type="text" maxlength="200" />
+        </label>
+        <p v-if="dmShareError" class="error">{{ dmShareError }}</p>
+        <button
+          type="button"
+          class="btn"
+          :disabled="dmShareBusy || !dmSelected.length"
+          @click="sendDmShare"
+        >
+          {{ dmShareBusy ? t('share.dmSending') : t('share.dmSend') }}
+        </button>
+      </div>
     </div>
 
     <div ref="proseEl" class="prose" v-html="renderedHtml"></div>
@@ -338,6 +403,9 @@ import {
   me,
   recordPostView,
   shouldCountUniqueView,
+  fetchFriends,
+  sharePostViaDm,
+  togglePostDislike,
   togglePostFavorite,
   togglePostLike,
 } from '../api'
@@ -378,6 +446,8 @@ const commentFormError = ref('')
 const replyTarget = ref(null)
 const likeBusy = ref(false)
 const likeHint = ref(false)
+const dislikeBusy = ref(false)
+const dislikeHint = ref(false)
 const favoriteBusy = ref(false)
 const favoriteHint = ref(false)
 const shareOpen = ref(false)
@@ -386,10 +456,29 @@ const shareOk = ref(false)
 const shareWrapRef = ref(null)
 const nativeShareAvailable = ref(false)
 const highlightTarget = ref('')
+const dmShareOpen = ref(false)
+const dmFriends = ref([])
+const dmSelected = ref([])
+const dmNote = ref('')
+const dmShareLoading = ref(false)
+const dmShareBusy = ref(false)
+const dmShareError = ref('')
+const engageHint = ref('')
+const engageHintOk = ref(true)
 let shareHintTimer = null
 let highlightTimer = null
+let engageHintTimer = null
 
 const shareQrSrc = computed(() => qrCodeUrl(postShareUrl(props.slug), 132))
+
+function flashEngage(msg, ok = true) {
+  engageHint.value = msg
+  engageHintOk.value = ok
+  if (engageHintTimer) clearTimeout(engageHintTimer)
+  engageHintTimer = setTimeout(() => {
+    engageHint.value = ''
+  }, 2600)
+}
 
 function toggleShare() {
   shareOpen.value = !shareOpen.value
@@ -596,6 +685,8 @@ async function load() {
   error.value = ''
   post.value = null
   likeHint.value = false
+  dislikeHint.value = false
+  favoriteHint.value = false
   try {
     post.value = await fetchPost(props.slug)
     await Promise.all([loadComments(), trackView()])
@@ -637,6 +728,7 @@ async function scrollToHashTarget() {
 
 async function onLike() {
   likeHint.value = false
+  dislikeHint.value = false
   favoriteHint.value = false
   if (!currentUser.value) {
     likeHint.value = true
@@ -650,6 +742,8 @@ async function onLike() {
         ...post.value,
         likedByMe: data.likedByMe,
         likeCount: data.likeCount,
+        dislikedByMe: data.dislikedByMe ?? false,
+        dislikeCount: data.dislikeCount ?? post.value.dislikeCount,
         viewCount: data.viewCount ?? post.value.viewCount,
         commentCount: data.commentCount ?? post.value.commentCount,
         heat: data.heat,
@@ -665,8 +759,87 @@ async function onLike() {
   }
 }
 
+async function onDislike() {
+  likeHint.value = false
+  dislikeHint.value = false
+  favoriteHint.value = false
+  if (!currentUser.value) {
+    dislikeHint.value = true
+    return
+  }
+  dislikeBusy.value = true
+  try {
+    const data = await togglePostDislike(props.slug)
+    if (post.value) {
+      post.value = {
+        ...post.value,
+        dislikedByMe: data.dislikedByMe,
+        dislikeCount: data.dislikeCount,
+        likedByMe: data.likedByMe ?? false,
+        likeCount: data.likeCount ?? post.value.likeCount,
+        viewCount: data.viewCount ?? post.value.viewCount,
+        commentCount: data.commentCount ?? post.value.commentCount,
+        heat: data.heat,
+      }
+    }
+  } catch (err) {
+    if (String(err.message || '').includes('Unauthorized')) {
+      dislikeHint.value = true
+      currentUser.value = null
+    }
+  } finally {
+    dislikeBusy.value = false
+  }
+}
+
+async function openDmShare() {
+  dmShareError.value = ''
+  dmNote.value = ''
+  dmSelected.value = []
+  if (!currentUser.value) {
+    flashShare(t('share.dmNeedLogin'), false)
+    return
+  }
+  closeShare()
+  dmShareOpen.value = true
+  dmShareLoading.value = true
+  try {
+    dmFriends.value = await fetchFriends()
+  } catch (err) {
+    dmFriends.value = []
+    dmShareError.value = err.message || t('share.dmFailed')
+  } finally {
+    dmShareLoading.value = false
+  }
+}
+
+async function sendDmShare() {
+  if (!dmSelected.value.length) return
+  dmShareBusy.value = true
+  dmShareError.value = ''
+  try {
+    const data = await sharePostViaDm(props.slug, {
+      usernames: dmSelected.value,
+      note: dmNote.value.trim(),
+    })
+    dmShareOpen.value = false
+    const sent = Number(data?.sent || 0)
+    const skipped = Number(data?.skipped || 0)
+    if (skipped > 0) {
+      flashEngage(t('share.dmPartial', { sent, skipped }), true)
+    } else {
+      flashEngage(t('share.dmOk', { count: sent }), true)
+    }
+  } catch (err) {
+    dmShareError.value = err.message || t('share.dmFailed')
+  } finally {
+    dmShareBusy.value = false
+  }
+}
+
 async function onFavorite() {
   likeHint.value = false
+  dislikeHint.value = false
   favoriteHint.value = false
   if (!currentUser.value) {
     favoriteHint.value = true
@@ -681,6 +854,7 @@ async function onFavorite() {
         favoritedByMe: data.favoritedByMe,
         favoriteCount: data.favoriteCount,
         likeCount: data.likeCount ?? post.value.likeCount,
+        dislikeCount: data.dislikeCount ?? post.value.dislikeCount,
         viewCount: data.viewCount ?? post.value.viewCount,
         commentCount: data.commentCount ?? post.value.commentCount,
         heat: data.heat,
@@ -931,6 +1105,18 @@ watch(
   background: color-mix(in srgb, #e11d48 8%, transparent);
 }
 
+.dislike-btn.active {
+  border-color: #64748b;
+  color: #64748b;
+  background: color-mix(in srgb, #64748b 10%, transparent);
+}
+
+.favorite-btn.active {
+  border-color: #ca8a04;
+  color: #ca8a04;
+  background: color-mix(in srgb, #ca8a04 10%, transparent);
+}
+
 .like-btn.busy {
   opacity: 0.65;
 }
@@ -939,6 +1125,102 @@ watch(
   margin: 0;
   width: 100%;
   font-size: 0.88rem;
+}
+
+.like-hint.ok {
+  color: var(--accent);
+}
+
+.repost-card {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.repost-card:hover {
+  border-color: var(--accent);
+}
+
+.repost-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.repost-card strong {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.dm-share-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #0f172a 45%, transparent);
+}
+
+.dm-share-panel {
+  width: min(22rem, 100%);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+}
+
+.dm-share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dm-friend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dm-friend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+.dm-friend:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.dm-note {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
+.dm-note input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .share-wrap {

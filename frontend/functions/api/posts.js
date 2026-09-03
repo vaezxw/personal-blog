@@ -1,10 +1,30 @@
 import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
 import { replacePostAttachments } from './_lib/attachments.js'
+import { createNotification } from './_lib/notifications.js'
+import { notifyMentions } from './_lib/mentions.js'
 import { newId } from './_lib/crypto.js'
 import { notifyFollowersOfNewPost } from './_lib/postFollowNotify.js'
 import { enrichPosts } from './_lib/stats.js'
 import { empty, json, readJson } from './_lib/response.js'
 import { normalizeVisibility, publishedVisibilitySql } from './_lib/visibility.js'
+
+async function resolveRepostSource(db, body) {
+  const slug = String(body?.repostOfSlug || '').trim()
+  const id = String(body?.repostOfPostId || '').trim()
+  if (!slug && !id) return null
+  if (id) {
+    const row = await db
+      .prepare('SELECT id, author_id, published FROM posts WHERE id = ?')
+      .bind(id)
+      .first()
+    return row?.published ? row : null
+  }
+  const row = await db
+    .prepare('SELECT id, author_id, published FROM posts WHERE slug = ?')
+    .bind(slug)
+    .first()
+  return row?.published ? row : null
+}
 
 export async function onRequest(context) {
   const { request, env } = context
@@ -78,6 +98,11 @@ export async function onRequest(context) {
       const existing = await env.DB.prepare('SELECT id FROM posts WHERE slug = ?').bind(slug).first()
       if (existing) return json(409, { error: 'Slug already exists' })
 
+      const source = await resolveRepostSource(env.DB, body)
+      if ((body.repostOfSlug || body.repostOfPostId) && !source) {
+        return json(400, { error: 'Source post not found or not published' })
+      }
+
       const now = new Date().toISOString()
       const id = newId('p')
       const title = String(body.title).trim()
@@ -85,13 +110,23 @@ export async function onRequest(context) {
       const content = body.content || ''
       const published = body.published ? 1 : 0
       const visibility = normalizeVisibility(body.visibility)
+      const repostOf = source?.id || null
 
-      await env.DB.prepare(
-        `INSERT INTO posts (id, title, slug, excerpt, content, published, visibility, author_id, created_at, updated_at, view_count, like_count, click_count)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
-      )
-        .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now)
-        .run()
+      try {
+        await env.DB.prepare(
+          `INSERT INTO posts (id, title, slug, excerpt, content, published, visibility, author_id, created_at, updated_at, view_count, like_count, click_count, repost_of_post_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
+        )
+          .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now, repostOf)
+          .run()
+      } catch {
+        await env.DB.prepare(
+          `INSERT INTO posts (id, title, slug, excerpt, content, published, visibility, author_id, created_at, updated_at, view_count, like_count, click_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
+        )
+          .bind(id, title, slug, excerpt, content, published, visibility, user.id, now, now)
+          .run()
+      }
 
       if (body.attachments !== undefined) {
         await replacePostAttachments(env.DB, id, body.attachments)
@@ -104,6 +139,27 @@ export async function onRequest(context) {
           published,
           visibility,
         })
+        try {
+          await notifyMentions(env.DB, {
+            actorId: user.id,
+            text: `${title}\n${excerpt}\n${content}`,
+            postId: id,
+          })
+        } catch {
+          /* ignore */
+        }
+        if (source?.author_id) {
+          try {
+            await createNotification(env.DB, {
+              userId: source.author_id,
+              actorId: user.id,
+              type: 'repost',
+              postId: id,
+            })
+          } catch {
+            /* ignore */
+          }
+        }
       }
 
       const row = await env.DB.prepare(

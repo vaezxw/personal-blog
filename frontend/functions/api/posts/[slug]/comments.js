@@ -1,6 +1,7 @@
 import { newId } from '../../_lib/crypto.js'
 import { COMMENT_SELECT, mapComment } from '../../_lib/comments.js'
 import { createNotification } from '../../_lib/notifications.js'
+import { notifyMentions } from '../../_lib/mentions.js'
 import { optionalUser, requireUser } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
 import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
@@ -81,6 +82,17 @@ export async function onRequest(context) {
           postId: post.id,
           commentId: id,
         })
+      }
+
+      try {
+        await notifyMentions(env.DB, {
+          actorId: auth.user.id,
+          text: content,
+          postId: post.id,
+          commentId: id,
+        })
+      } catch {
+        /* mention table may be pending migration */
       }
 
       const row = await env.DB.prepare(`${COMMENT_SELECT} WHERE c.id = ?`).bind(id).first()

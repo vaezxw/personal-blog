@@ -35,9 +35,20 @@
       <div class="post-body">
         <h2>
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }">{{ post.title }}</RouterLink>
+          <span v-if="post.repostOf" class="vis-badge">{{ t('post.repostBadge') }}</span>
           <span v-if="post.visibility === 'friends'" class="vis-badge">{{ t('post.badgeFriends') }}</span>
           <span v-else-if="post.visibility === 'private'" class="vis-badge private">{{ t('post.badgePrivate') }}</span>
         </h2>
+        <RouterLink
+          v-if="post.repostOf"
+          class="home-repost"
+          :to="{ name: 'post', params: { slug: post.repostOf.slug } }"
+          @click.stop
+        >
+          <span>{{ t('post.repostSource') }}</span>
+          <strong>{{ post.repostOf.title }}</strong>
+          <span class="muted">@{{ post.repostOf.authorUsername }}</span>
+        </RouterLink>
         <p>{{ plainExcerpt(post.excerpt || post.content) }}</p>
         <p class="post-engage muted">
           <span>{{ t('home.views', { count: post.viewCount || 0 }) }}</span>
@@ -99,6 +110,29 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.home-repost {
+  display: grid;
+  gap: 0.1rem;
+  margin: 0.35rem 0 0.55rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.4rem;
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.88rem;
+}
+
+.home-repost:hover {
+  border-color: var(--accent);
+}
+
+.home-repost span:first-child {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
 }
 
 .person-chip {

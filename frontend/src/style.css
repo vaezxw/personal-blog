@@ -692,9 +692,29 @@ a.notify-bell.router-link-active {
 
 .site-footer {
   border-top: 1px solid var(--line);
-  padding-top: 1.25rem;
+  padding: 1.35rem 0 1.75rem;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.footer-inner {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.footer-brand {
+  color: var(--ink);
+  font-weight: 600;
+  margin: 0;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.footer-meta {
+  opacity: 0.9;
 }
 
 .hero,

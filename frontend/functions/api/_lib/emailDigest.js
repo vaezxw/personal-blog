@@ -22,11 +22,18 @@ function escapeHtml(s) {
 export async function runAllEmailDigests(env) {
   const messages = await runUnreadMessageEmailDigest(env)
   const posts = await runNewPostEmailDigest(env)
+  let mentions = { ok: true, sent: 0 }
+  try {
+    mentions = await runMentionEmailDigest(env)
+  } catch (err) {
+    mentions = { ok: false, sent: 0, error: String(err?.message || err) }
+  }
   return {
-    ok: Boolean(messages?.ok) && Boolean(posts?.ok),
+    ok: Boolean(messages?.ok) && Boolean(posts?.ok) && Boolean(mentions?.ok),
     messages,
     posts,
-    sent: Number(messages?.sent || 0) + Number(posts?.sent || 0),
+    mentions,
+    sent: Number(messages?.sent || 0) + Number(posts?.sent || 0) + Number(mentions?.sent || 0),
   }
 }
 
@@ -356,6 +363,157 @@ async function markPostEmailNotified(db, outboxIds) {
     db
       .prepare(
         `UPDATE post_follow_emails SET email_notified_at = ? WHERE id = ? AND email_notified_at IS NULL`,
+      )
+      .bind(now, id),
+  )
+  await db.batch(stmts)
+}
+
+/** Email users who were @mentioned and have not been emailed yet. */
+export async function runMentionEmailDigest(env) {
+  if (!env?.DB) return { ok: false, error: 'DB missing', sent: 0 }
+  if (!env.SMTP_PASS || !env.SMTP_USER) {
+    return { ok: false, error: 'SMTP not configured', sent: 0 }
+  }
+
+  const cutoff = new Date(Date.now() - GRACE_MS).toISOString()
+  let results = []
+  try {
+    const q = await env.DB.prepare(
+      `SELECT
+          me.id AS outbox_id,
+          me.created_at AS created_at,
+          me.post_id AS post_id,
+          me.comment_id AS comment_id,
+          recip.id AS recipient_id,
+          recip.email AS recipient_email,
+          recip.username AS recipient_username,
+          actor.username AS actor_username,
+          p.title AS post_title,
+          p.slug AS post_slug
+       FROM mention_emails me
+       JOIN users recip ON recip.id = me.user_id
+       JOIN users actor ON actor.id = me.actor_id
+       LEFT JOIN posts p ON p.id = me.post_id
+       WHERE me.email_notified_at IS NULL
+         AND me.created_at <= ?
+       ORDER BY recip.id, me.created_at ASC
+       LIMIT 500`,
+    )
+      .bind(cutoff)
+      .all()
+    results = q.results || []
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err), sent: 0 }
+  }
+
+  if (!results.length) return { ok: true, sent: 0, skipped: 0, recipients: 0 }
+
+  /** @type {Map<string, typeof results>} */
+  const byRecipient = new Map()
+  for (const row of results) {
+    if (!byRecipient.has(row.recipient_id)) byRecipient.set(row.recipient_id, [])
+    byRecipient.get(row.recipient_id).push(row)
+  }
+
+  const origin = siteOrigin(env)
+  let sent = 0
+  let skipped = 0
+  const errors = []
+
+  for (const [, group] of byRecipient) {
+    if (sent >= MAX_RECIPIENTS) break
+    const first = group[0]
+    const email = first.recipient_email
+    if (!isDeliverableEmail(email)) {
+      skipped += 1
+      await markMentionEmailNotified(
+        env.DB,
+        group.map((g) => g.outbox_id),
+      )
+      continue
+    }
+
+    const count = group.length
+    const actors = [...new Set(group.map((g) => g.actor_username).filter(Boolean))]
+    const primary = actors[0] || '有人'
+    const subject =
+      count === 1
+        ? `【墨痕】${primary} 在内容中提到了你`
+        : `【墨痕】你有 ${count} 条 @提及`
+
+    const textLines = [
+      `你好 ${first.recipient_username}，`,
+      '',
+      count === 1
+        ? `${primary} 在「墨痕」提到了你。`
+        : `你有 ${count} 条未读 @提及。`,
+      '',
+    ]
+    for (const g of group.slice(0, 8)) {
+      const link = g.post_slug
+        ? `${origin}/post/${encodeURIComponent(g.post_slug)}${g.comment_id ? `#comment-${g.comment_id}` : ''}`
+        : `${origin}/`
+      textLines.push(`- @${g.actor_username} · ${g.post_title || '动态'} → ${link}`)
+    }
+    if (group.length > 8) textLines.push(`…还有 ${group.length - 8} 条`)
+    textLines.push('', `打开网站：${origin}/`, '', '若你已在站内看过，可忽略本邮件。', '— 墨痕')
+    const text = textLines.join('\n')
+
+    const listHtml = `
+      <ul>
+        ${group
+          .slice(0, 8)
+          .map((g) => {
+            const link = g.post_slug
+              ? `${origin}/post/${encodeURIComponent(g.post_slug)}${g.comment_id ? `#comment-${g.comment_id}` : ''}`
+              : `${origin}/`
+            return `<li><strong>@${escapeHtml(g.actor_username)}</strong>：
+              <a href="${escapeHtml(link)}">${escapeHtml(g.post_title || '查看内容')}</a></li>`
+          })
+          .join('')}
+        ${group.length > 8 ? `<li>…还有 ${group.length - 8} 条</li>` : ''}
+      </ul>`
+
+    const html = `
+      <div style="font-family:system-ui,sans-serif;line-height:1.6;color:#1a1a1a">
+        <p>你好 <strong>${escapeHtml(first.recipient_username)}</strong>，</p>
+        <p>${count === 1 ? `${escapeHtml(primary)} 在「墨痕」提到了你。` : `你有 ${count} 条未读 @提及。`}</p>
+        ${listHtml}
+        <p><a href="${escapeHtml(origin + '/')}" style="display:inline-block;padding:0.55rem 1rem;background:#0d9488;color:#fff;text-decoration:none;border-radius:8px">打开网站</a></p>
+        <p style="color:#64748b;font-size:0.9rem">若你已在站内看过，可忽略本邮件。<br/>— 墨痕</p>
+      </div>
+    `
+
+    try {
+      await sendSmtpMail(env, { to: email, subject, text, html })
+      await markMentionEmailNotified(
+        env.DB,
+        group.map((g) => g.outbox_id),
+      )
+      sent += 1
+    } catch (err) {
+      errors.push({ user: first.recipient_username, error: String(err?.message || err) })
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    sent,
+    skipped,
+    recipients: byRecipient.size,
+    errors: errors.length ? errors : undefined,
+  }
+}
+
+async function markMentionEmailNotified(db, outboxIds) {
+  const ids = [...new Set(outboxIds.filter(Boolean))]
+  if (!ids.length) return
+  const now = new Date().toISOString()
+  const stmts = ids.map((id) =>
+    db
+      .prepare(
+        `UPDATE mention_emails SET email_notified_at = ? WHERE id = ? AND email_notified_at IS NULL`,
       )
       .bind(now, id),
   )
