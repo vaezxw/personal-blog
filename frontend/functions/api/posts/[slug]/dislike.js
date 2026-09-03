@@ -74,12 +74,16 @@ export async function onRequest(context) {
       .bind(post.id)
       .run()
     disliked = true
-    await createNotification(env.DB, {
-      userId: post.author_id,
-      actorId: user.id,
-      type: 'dislike',
-      postId: post.id,
-    })
+    try {
+      await createNotification(env.DB, {
+        userId: post.author_id,
+        actorId: user.id,
+        type: 'dislike',
+        postId: post.id,
+      })
+    } catch {
+      /* notification must not block dislike */
+    }
   }
 
   const row = await env.DB.prepare(
