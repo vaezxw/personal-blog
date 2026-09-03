@@ -416,6 +416,7 @@ import {
   getStoredUser,
   me,
   recordPostView,
+  setStoredUser,
   shouldCountUniqueView,
   fetchFriends,
   sharePostViaDm,
@@ -823,11 +824,14 @@ async function openDmShare() {
       const data = await me()
       if (data?.user) {
         currentUser.value = data.user
+        setStoredUser(data.user)
       } else {
         currentUser.value = null
+        setStoredUser(null)
       }
     } catch {
       currentUser.value = null
+      setStoredUser(null)
     }
 
     if (!currentUser.value) {
