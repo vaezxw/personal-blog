@@ -8,6 +8,25 @@ function mediaPath(params) {
   return decodeURIComponent(String(raw || ''))
 }
 
+function parseRange(rangeHeader, size) {
+  const m = /^bytes=(\d*)-(\d*)$/i.exec(String(rangeHeader || '').trim())
+  if (!m) return null
+  let start = m[1] === '' ? NaN : Number(m[1])
+  let end = m[2] === '' ? NaN : Number(m[2])
+  if (Number.isNaN(start) && Number.isNaN(end)) return null
+  if (Number.isNaN(start)) {
+    const suffix = end
+    if (!suffix || suffix <= 0) return null
+    start = Math.max(size - suffix, 0)
+    end = size - 1
+  } else if (Number.isNaN(end)) {
+    end = size - 1
+  }
+  if (start < 0 || end < start || start >= size) return null
+  end = Math.min(end, size - 1)
+  return { start, end }
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context
 
@@ -23,17 +42,34 @@ export async function onRequest(context) {
     return json(403, { error: 'Forbidden' })
   }
 
-  const object = await env.MEDIA.get(path)
-  if (!object) return json(404, { error: 'Not found' })
+  const meta = await env.MEDIA.head(path)
+  if (!meta) return json(404, { error: 'Not found' })
 
+  const size = meta.size
   const headers = new Headers()
-  object.writeHttpMetadata(headers)
+  meta.writeHttpMetadata(headers)
   headers.set('Cache-Control', 'public, max-age=31536000, immutable')
   headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Accept-Ranges', 'bytes')
 
   if (request.method === 'HEAD') {
+    headers.set('Content-Length', String(size))
     return new Response(null, { headers })
   }
 
-  return new Response(object.body, { headers })
+  const range = parseRange(request.headers.get('Range'), size)
+  if (range) {
+    const partial = await env.MEDIA.get(path, {
+      range: { offset: range.start, length: range.end - range.start + 1 },
+    })
+    if (!partial) return json(404, { error: 'Not found' })
+    headers.set('Content-Range', `bytes ${range.start}-${range.end}/${size}`)
+    headers.set('Content-Length', String(range.end - range.start + 1))
+    return new Response(partial.body, { status: 206, headers })
+  }
+
+  const full = await env.MEDIA.get(path)
+  if (!full) return json(404, { error: 'Not found' })
+  headers.set('Content-Length', String(size))
+  return new Response(full.body, { headers })
 }

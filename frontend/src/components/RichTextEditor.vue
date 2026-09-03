@@ -23,7 +23,7 @@
 import '@wangeditor/editor/dist/css/style.css'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
-import { uploadImage } from '../api.js'
+import { uploadImage, uploadVideo } from '../api.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -53,6 +53,18 @@ const editorConfig = computed(() => ({
           insertFn(url, file.name || 'image', url)
         } catch (err) {
           console.error('Image upload failed:', err)
+        }
+      },
+    },
+    uploadVideo: {
+      maxFileSize: 50 * 1024 * 1024,
+      allowedFileTypes: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'],
+      async customUpload(file, insertFn) {
+        try {
+          const { url } = await uploadVideo(file)
+          insertFn(url, '')
+        } catch (err) {
+          console.error('Video upload failed:', err)
         }
       },
     },

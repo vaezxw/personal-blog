@@ -25,11 +25,10 @@ function normalizePair(from, to, text) {
   return { source, target }
 }
 
-/** Workers AI m2m100 language codes */
-function toAiLang(code) {
-  if (code === 'zh-CN' || code === 'zh') return 'chinese'
-  if (code === 'en') return 'english'
-  return String(code || 'english').toLowerCase()
+function toGoogleLang(code) {
+  if (code === 'zh' || code === 'zh-CN') return 'zh-CN'
+  if (code === 'en') return 'en'
+  return code
 }
 
 function toMyMemoryLang(code) {
@@ -38,21 +37,77 @@ function toMyMemoryLang(code) {
   return code
 }
 
-async function translateViaWorkersAI(ai, text, source, target) {
-  if (!ai?.run) throw new Error('Workers AI not configured')
-  const result = await ai.run(AI_MODEL, {
-    text,
-    source_lang: toAiLang(source),
-    target_lang: toAiLang(target),
-  })
-  const translated =
+/** Workers AI schema prefers ISO; examples also accept full names */
+function toAiLangPairs(source, target) {
+  const iso = (code) => {
+    if (code === 'zh-CN' || code === 'zh') return 'zh'
+    if (code === 'en') return 'en'
+    return String(code || 'en').toLowerCase()
+  }
+  const name = (code) => {
+    if (code === 'zh-CN' || code === 'zh') return 'chinese'
+    if (code === 'en') return 'english'
+    return String(code || 'english').toLowerCase()
+  }
+  return [
+    { source_lang: iso(source), target_lang: iso(target) },
+    { source_lang: name(source), target_lang: name(target) },
+  ]
+}
+
+function extractAiTranslation(result) {
+  return (
     (typeof result === 'string' && result) ||
     result?.translated_text ||
     result?.translation ||
     result?.result?.translated_text ||
     ''
-  if (!translated) throw new Error('Empty translation from Workers AI')
-  return { translated: String(translated), detected: source, provider: 'workers-ai' }
+  )
+}
+
+/** Reject obviously broken model output so we can fall through to better providers */
+function isBadTranslation(src, out, source, target) {
+  const s = String(src || '').trim()
+  const o = String(out || '').trim()
+  if (!o) return true
+  if (s === o && source !== target) return true
+
+  const outCjk = (o.match(/[\u4e00-\u9fff]/g) || []).length
+  const outLatin = (o.match(/[A-Za-z]/g) || []).length
+
+  if (target === 'en') {
+    // English target should not be mostly CJK
+    if (outCjk > 0 && outCjk >= outLatin) return true
+    // Very short Chinese greeting → English should be a word, not fragments like "Hi to"
+    if (s.length <= 4 && /[\u4e00-\u9fff]/.test(s) && /\bto\b$/i.test(o)) return true
+  }
+  if (target === 'zh-CN') {
+    if (outCjk === 0) return true
+  }
+  return false
+}
+
+async function translateViaWorkersAI(ai, text, source, target) {
+  if (!ai?.run) throw new Error('Workers AI not configured')
+  let lastErr = null
+  for (const langs of toAiLangPairs(source, target)) {
+    try {
+      const result = await ai.run(AI_MODEL, { text, ...langs })
+      const translated = String(extractAiTranslation(result) || '').trim()
+      if (!translated) {
+        lastErr = new Error('Empty translation from Workers AI')
+        continue
+      }
+      if (isBadTranslation(text, translated, source, target)) {
+        lastErr = new Error('Low-quality Workers AI translation')
+        continue
+      }
+      return { translated, detected: source, provider: 'workers-ai' }
+    } catch (err) {
+      lastErr = err
+    }
+  }
+  throw lastErr || new Error('Workers AI failed')
 }
 
 async function translateViaMyMemory(text, source, target) {
@@ -71,19 +126,22 @@ async function translateViaMyMemory(text, source, target) {
   if (Number(data?.responseStatus) !== 200) {
     throw new Error(data?.responseDetails || 'MyMemory translate failed')
   }
-  const translated = data?.responseData?.translatedText
+  const translated = String(data?.responseData?.translatedText || '').trim()
   if (!translated) throw new Error('Empty translation')
   if (/IS AN INVALID|QUERY LENGTH/i.test(translated)) {
     throw new Error(translated)
   }
-  return { translated: String(translated), detected: source, provider: 'mymemory' }
+  if (isBadTranslation(text, translated, source, target)) {
+    throw new Error('Low-quality MyMemory translation')
+  }
+  return { translated, detected: source, provider: 'mymemory' }
 }
 
 async function translateViaGoogle(text, source, target) {
   const url = new URL('https://translate.googleapis.com/translate_a/single')
   url.searchParams.set('client', 'gtx')
-  url.searchParams.set('sl', source === 'auto' ? 'auto' : source)
-  url.searchParams.set('tl', target)
+  url.searchParams.set('sl', source === 'auto' ? 'auto' : toGoogleLang(source))
+  url.searchParams.set('tl', toGoogleLang(target))
   url.searchParams.set('dt', 't')
   url.searchParams.set('q', text)
 
@@ -94,39 +152,37 @@ async function translateViaGoogle(text, source, target) {
         'Mozilla/5.0 (compatible; MohhenBlog/1.0; +https://mohhen-blog.pages.dev)',
     },
   })
+  if (res.status === 429) throw new Error('Translate upstream 429')
   if (!res.ok) throw new Error(`Translate upstream ${res.status}`)
   const data = await res.json()
   const chunks = Array.isArray(data?.[0]) ? data[0] : []
-  const translated = chunks.map((row) => row?.[0] || '').join('')
+  const translated = chunks.map((row) => row?.[0] || '').join('').trim()
   const detected = data?.[2] || source
   if (!translated) throw new Error('Empty translation')
+  if (isBadTranslation(text, translated, source, target)) {
+    throw new Error('Low-quality Google translation')
+  }
   return { translated, detected, provider: 'google' }
 }
 
 async function translateWithFallback(env, text, source, target) {
   const errors = []
+  // Prefer Google / MyMemory for zh↔en quality; Workers AI m2m100 is weak on short phrases
+  const providers = [
+    () => translateViaGoogle(text, source, target),
+    () => translateViaMyMemory(text, source, target),
+    () => translateViaWorkersAI(env?.AI, text, source, target),
+  ]
 
-  if (env?.AI) {
+  for (const run of providers) {
     try {
-      return await translateViaWorkersAI(env.AI, text, source, target)
+      return await run()
     } catch (err) {
-      errors.push(`ai: ${err.message}`)
+      errors.push(err.message || String(err))
     }
   }
 
-  try {
-    return await translateViaMyMemory(text, source, target)
-  } catch (err) {
-    errors.push(`mymemory: ${err.message}`)
-  }
-
-  try {
-    return await translateViaGoogle(text, source, target)
-  } catch (err) {
-    errors.push(`google: ${err.message}`)
-  }
-
-  const hit429 = errors.some((e) => e.includes('429'))
+  const hit429 = errors.some((e) => String(e).includes('429'))
   const err = new Error(
     hit429
       ? '请求过于频繁，请稍后再试'
