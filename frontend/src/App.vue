@@ -247,8 +247,13 @@ function notifyText(n) {
   if (n.type === 'repost') {
     return t('notify.repost', { user: n.actorUsername || 'user', title: n.postTitle || '' })
   }
-  const key = n.type === 'like' ? 'notify.like' : 'notify.comment'
-  return t(key, { user: n.actorUsername || 'user', title: n.postTitle || '' })
+  if (n.type === 'dislike') {
+    return t('notify.dislike', { user: n.actorUsername || 'user', title: n.postTitle || '' })
+  }
+  if (n.type === 'like') {
+    return t('notify.like', { user: n.actorUsername || 'user', title: n.postTitle || '' })
+  }
+  return t('notify.comment', { user: n.actorUsername || 'user', title: n.postTitle || '' })
 }
 
 function notifyHref(n) {
@@ -264,7 +269,7 @@ function notifyHref(n) {
   if (!slug) return '#'
   if (n?.type === 'post' || n?.type === 'repost') return `/post/${encodeURIComponent(slug)}`
   const hash =
-    n?.type === 'like'
+    n?.type === 'like' || n?.type === 'dislike'
       ? '#likes'
       : n?.type === 'mention' && n?.commentId
         ? `#comment-${n.commentId}`

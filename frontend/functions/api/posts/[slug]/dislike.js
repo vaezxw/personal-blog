@@ -1,4 +1,5 @@
 import { mapPost, requireUser } from '../../_lib/auth.js'
+import { createNotification } from '../../_lib/notifications.js'
 import { enrichPosts } from '../../_lib/stats.js'
 import { empty, json } from '../../_lib/response.js'
 import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
@@ -73,6 +74,12 @@ export async function onRequest(context) {
       .bind(post.id)
       .run()
     disliked = true
+    await createNotification(env.DB, {
+      userId: post.author_id,
+      actorId: user.id,
+      type: 'dislike',
+      postId: post.id,
+    })
   }
 
   const row = await env.DB.prepare(
