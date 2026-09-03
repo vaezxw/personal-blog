@@ -150,7 +150,7 @@
         </div>
         <p class="muted">{{ t('share.dmHint') }}</p>
         <p v-if="dmShareLoading" class="muted">{{ t('post.loading') }}</p>
-        <p v-else-if="!dmFriends.length" class="muted">{{ t('share.dmEmpty') }}</p>
+        <p v-else-if="!(dmFriends || []).length" class="muted">{{ t('share.dmEmpty') }}</p>
         <ul v-else class="dm-friend-list">
           <li v-for="f in dmFriends" :key="f.id">
             <label class="dm-friend">
@@ -167,7 +167,7 @@
         <button
           type="button"
           class="btn"
-          :disabled="dmShareBusy || !dmSelected.length"
+          :disabled="dmShareBusy || !(dmSelected || []).length"
           @click="sendDmShare"
         >
           {{ dmShareBusy ? t('share.dmSending') : t('share.dmSend') }}
@@ -796,6 +796,7 @@ async function openDmShare() {
   dmShareError.value = ''
   dmNote.value = ''
   dmSelected.value = []
+  dmFriends.value = []
   if (!currentUser.value) {
     flashShare(t('share.dmNeedLogin'), false)
     return
@@ -804,9 +805,16 @@ async function openDmShare() {
   dmShareOpen.value = true
   dmShareLoading.value = true
   try {
-    dmFriends.value = await fetchFriends()
+    const list = await fetchFriends()
+    dmFriends.value = Array.isArray(list) ? list : []
   } catch (err) {
     dmFriends.value = []
+    if (err?.status === 401 || String(err.message || '').includes('Unauthorized')) {
+      currentUser.value = null
+      dmShareOpen.value = false
+      flashShare(t('share.dmNeedLogin'), false)
+      return
+    }
     dmShareError.value = err.message || t('share.dmFailed')
   } finally {
     dmShareLoading.value = false
@@ -814,13 +822,14 @@ async function openDmShare() {
 }
 
 async function sendDmShare() {
-  if (!dmSelected.value.length) return
+  const selected = Array.isArray(dmSelected.value) ? dmSelected.value : []
+  if (!selected.length) return
   dmShareBusy.value = true
   dmShareError.value = ''
   try {
     const data = await sharePostViaDm(props.slug, {
-      usernames: dmSelected.value,
-      note: dmNote.value.trim(),
+      usernames: selected,
+      note: String(dmNote.value || '').trim(),
     })
     dmShareOpen.value = false
     const sent = Number(data?.sent || 0)
@@ -831,7 +840,12 @@ async function sendDmShare() {
       flashEngage(t('share.dmOk', { count: sent }), true)
     }
   } catch (err) {
-    dmShareError.value = err.message || t('share.dmFailed')
+    if (err?.status === 401 || String(err.message || '').includes('Unauthorized')) {
+      currentUser.value = null
+      dmShareError.value = t('share.dmNeedLogin')
+    } else {
+      dmShareError.value = err.message || t('share.dmFailed')
+    }
   } finally {
     dmShareBusy.value = false
   }

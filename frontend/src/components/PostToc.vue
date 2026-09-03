@@ -144,7 +144,7 @@ function disconnectObserver() {
 
 function setupObserver() {
   disconnectObserver()
-  if (!props.value.length) return
+  if (!flatIds.value.length) return
   const elements = flatIds.value.map((id) => document.getElementById(id)).filter(Boolean)
   if (!elements.length) return
 
