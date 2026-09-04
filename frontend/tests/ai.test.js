@@ -7,6 +7,14 @@ import {
   normalizeBaseUrl,
 } from '../functions/api/_lib/ai.js'
 import { decryptSecret, encryptSecret } from '../functions/api/_lib/secretBox.js'
+import {
+  buildAgentPrompt,
+  extractCliDelta,
+  extractCliResult,
+  normalizeHistory,
+  normalizeMode,
+  parseArgs,
+} from '../tools/cursor-agent-relay.mjs'
 
 test('normalizes OpenAI-compatible Base URLs', () => {
   assert.equal(normalizeBaseUrl('https://api.example.com/v1/'), 'https://api.example.com/v1')
@@ -50,3 +58,31 @@ test('extracts common OpenAI-compatible response shapes', () => {
   )
 })
 
+test('parses Cursor CLI streaming output and bounds relay prompts', () => {
+  assert.equal(
+    extractCliDelta({
+      type: 'assistant',
+      timestamp_ms: 1,
+      message: { content: [{ text: 'hello' }] },
+    }),
+    'hello',
+  )
+  assert.equal(
+    extractCliDelta({
+      type: 'assistant',
+      model_call_id: 'call-1',
+      message: { content: [{ text: 'skip' }] },
+    }),
+    '',
+  )
+  assert.equal(extractCliResult({ type: 'result', result: 'finished' }), 'finished')
+  assert.equal(normalizeMode('agent'), 'agent')
+  assert.equal(normalizeMode('unsafe'), 'ask')
+  assert.equal(
+    normalizeHistory([{ role: 'user', content: 'hello' }, { role: 'system', content: 'skip' }]).length,
+    1,
+  )
+  const prompt = buildAgentPrompt({ history: [{ role: 'user', content: 'hello' }], message: 'status' })
+  assert.match(prompt, /Current user request:\nstatus/)
+  assert.equal(parseArgs(['--mode', 'agent', '--env', 'NO_PROXY=localhost']).mode, 'agent')
+})

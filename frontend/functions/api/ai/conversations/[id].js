@@ -10,10 +10,11 @@ async function loadConversation(db, userId, id) {
   return db
     .prepare(
       `SELECT c.id, c.title, c.connection_id, c.created_at, c.updated_at,
-              ac.model,
+              ac.model, acs.provider,
               (SELECT COUNT(*) FROM ai_messages m WHERE m.conversation_id = c.id) AS message_count
        FROM ai_conversations c
        LEFT JOIN ai_connections ac ON ac.id = c.connection_id
+       LEFT JOIN ai_conversation_sources acs ON acs.conversation_id = c.id
        WHERE c.id = ? AND c.user_id = ?`,
     )
     .bind(id, userId)
@@ -59,4 +60,3 @@ export async function onRequest(context) {
   const row = await loadConversation(env.DB, auth.user.id, id)
   return json(200, { conversation: mapConversation(row) })
 }
-

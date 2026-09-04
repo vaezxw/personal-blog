@@ -109,6 +109,19 @@ npx wrangler pages secret put AI_MAX_REQUESTS_PER_DAY --project-name=mohhen-blog
 
 模型 API 必须是公网 HTTPS 的 OpenAI-compatible `/chat/completions` 接口。用户自己的 Ollama / LM Studio localhost 地址无法从 Cloudflare Pages Functions 访问。
 
+#### Cursor Agent 本机额度
+
+生产网站不能直接访问用户电脑上的 Cursor CLI。若要使用已登录 Cursor 账号的月度额度，请在本机启动 Relay，再在“我的 → AI 模型 → Cursor Agent（本机额度）”中填入地址和配对令牌：
+
+```powershell
+node frontend/tools/cursor-agent-relay.mjs `
+  --cli "C:\Users\<你的用户名>\AppData\Local\cursor-agent\agent.cmd" `
+  --workspace "E:\code\studio-site" `
+  --origins "https://mohhen-blog.pages.dev,http://localhost:5173"
+```
+
+Relay 默认只监听 `127.0.0.1:3210`，启动时会打印配对令牌。默认 `ask` 模式只读访问工作区；确认需要执行操作时可加 `--mode agent`。Relay 使用本机已登录的 Cursor CLI，网站不会接收 Cursor Cookie、Session 或账号密码。详细说明见 [`frontend/tools/README.md`](frontend/tools/README.md)。
+
 ### 旧版 Express 后端（可选，一般不用）
 
 仓库保留 `backend/`，为 Token + JSON 文件方案，**线上已不用**。

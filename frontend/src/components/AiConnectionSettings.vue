@@ -11,6 +11,54 @@
 
     <p v-if="loadError" class="error" role="alert">{{ loadError }}</p>
 
+    <section class="cursor-relay-card" aria-labelledby="cursor-relay-title">
+      <div class="cursor-relay-head">
+        <div>
+          <div class="ai-connection-title">
+            <strong id="cursor-relay-title">{{ t('ai.cursorTitle') }}</strong>
+            <span class="cursor-relay-pill" :class="{ active: cursorConfig.enabled }">
+              {{ cursorConfig.enabled ? t('ai.cursorEnabled') : t('ai.cursorNotConfigured') }}
+            </span>
+          </div>
+          <p class="muted cursor-relay-lede">{{ t('ai.cursorLede') }}</p>
+        </div>
+      </div>
+
+      <div class="cursor-relay-grid">
+        <label class="ai-field">
+          <span>{{ t('ai.cursorRelayUrl') }}</span>
+          <input v-model.trim="cursorConfig.relayUrl" :placeholder="DEFAULT_RELAY_URL" inputmode="url" autocomplete="url" />
+        </label>
+        <label class="ai-field">
+          <span>{{ t('ai.cursorModelOptional') }}</span>
+          <input v-model.trim="cursorConfig.model" placeholder="Cursor default" autocomplete="off" />
+        </label>
+        <label class="ai-field ai-field-wide">
+          <span>{{ t('ai.cursorToken') }}</span>
+          <input v-model="cursorConfig.token" type="password" autocomplete="new-password" :placeholder="t('ai.cursorTokenPlaceholder')" />
+        </label>
+      </div>
+
+      <p class="muted cursor-relay-hint">
+        {{ t('ai.cursorPathHint') }}
+        <code>node frontend/tools/cursor-agent-relay.mjs --cli "...agent.cmd"</code>
+      </p>
+      <p v-if="cursorFeedback" class="ai-feedback" :class="cursorFeedbackKind" role="status">
+        {{ cursorFeedback }}
+      </p>
+      <div class="ai-form-actions">
+        <button class="btn ghost" type="button" @click="saveCursorConfig">
+          {{ t('ai.cursorSave') }}
+        </button>
+        <button class="btn" type="button" :disabled="cursorTesting" @click="testCursorRelay">
+          {{ cursorTesting ? t('ai.cursorChecking') : t('ai.cursorCheck') }}
+        </button>
+        <button v-if="cursorConfig.enabled" class="btn ghost" type="button" @click="disableCursorRelay">
+          {{ t('ai.cursorDisable') }}
+        </button>
+      </div>
+    </section>
+
     <div v-if="connections.length" class="ai-connection-list">
       <article
         v-for="connection in connections"
@@ -150,6 +198,12 @@ import {
   updateAiConnection,
 } from '../api.js'
 import { useLocale } from '../composables/useLocale.js'
+import {
+  checkCursorRelay,
+  DEFAULT_RELAY_URL,
+  getCursorRelayConfig,
+  saveCursorRelayConfig,
+} from '../utils/cursorAgent.js'
 import { AI_PROVIDER_PRESETS } from '../utils/aiProviders.js'
 
 const emit = defineEmits(['saved'])
@@ -166,6 +220,10 @@ const testing = ref(false)
 const busyId = ref('')
 const showKey = ref(false)
 const editing = ref(null)
+const cursorConfig = reactive(getCursorRelayConfig())
+const cursorTesting = ref(false)
+const cursorFeedback = ref('')
+const cursorFeedbackKind = ref('success')
 
 function presetFor(connection) {
   return presets.find((preset) => preset.baseUrl === connection.baseUrl)?.id || 'custom'
@@ -202,6 +260,45 @@ function newConnection() {
   showKey.value = false
   formError.value = ''
   feedback.value = ''
+}
+
+function saveCursorConfig() {
+  try {
+    const saved = saveCursorRelayConfig({ ...cursorConfig, enabled: true })
+    Object.assign(cursorConfig, saved)
+    cursorFeedback.value = t('ai.cursorSaved')
+    cursorFeedbackKind.value = 'success'
+    window.dispatchEvent(new CustomEvent('mohhen-cursor-relay-change'))
+  } catch (error) {
+    cursorFeedback.value = error.message || t('ai.cursorSetupFailed')
+    cursorFeedbackKind.value = 'error'
+  }
+}
+
+async function testCursorRelay() {
+  cursorTesting.value = true
+  cursorFeedback.value = ''
+  try {
+    const saved = saveCursorRelayConfig({ ...cursorConfig, enabled: true })
+    const info = await checkCursorRelay(saved)
+    Object.assign(cursorConfig, saved)
+    cursorFeedback.value = t('ai.cursorConnected', { cli: info.cliName || 'agent' })
+    cursorFeedbackKind.value = 'success'
+    window.dispatchEvent(new CustomEvent('mohhen-cursor-relay-change'))
+  } catch (error) {
+    cursorFeedback.value = error.message || t('ai.cursorSetupFailed')
+    cursorFeedbackKind.value = 'error'
+  } finally {
+    cursorTesting.value = false
+  }
+}
+
+function disableCursorRelay() {
+  const saved = saveCursorRelayConfig({ ...cursorConfig, enabled: false })
+  Object.assign(cursorConfig, saved)
+  cursorFeedback.value = t('ai.cursorDisabled')
+  cursorFeedbackKind.value = 'success'
+  window.dispatchEvent(new CustomEvent('mohhen-cursor-relay-change'))
 }
 
 function editConnection(connection) {
@@ -345,6 +442,65 @@ onMounted(loadConnections)
 .ai-settings-head p:last-child {
   margin: 0;
   max-width: 52rem;
+}
+
+.cursor-relay-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--input-bg));
+}
+
+.cursor-relay-head,
+.cursor-relay-head .ai-connection-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cursor-relay-lede,
+.cursor-relay-hint {
+  margin: 0.28rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.cursor-relay-pill {
+  padding: 0.12rem 0.42rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.cursor-relay-pill.active {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.cursor-relay-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.cursor-relay-grid .ai-field-wide {
+  grid-column: span 2;
+}
+
+.cursor-relay-hint code {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.18rem 0.35rem;
+  overflow-wrap: anywhere;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--ink);
+  font-size: 0.75rem;
 }
 
 .ai-connection-list {
@@ -513,6 +669,14 @@ onMounted(loadConnections)
 
   .ai-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cursor-relay-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cursor-relay-grid .ai-field-wide {
+    grid-column: auto;
   }
 
   .ai-field-wide {

@@ -148,6 +148,7 @@ export function mapConversation(row) {
     id: row.id,
     title: row.title,
     connectionId: row.connection_id || null,
+    provider: row.provider || AI_PROTOCOL,
     model: row.model || null,
     messageCount: Number(row.message_count || 0),
     createdAt: row.created_at,

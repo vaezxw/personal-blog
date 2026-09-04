@@ -525,6 +525,13 @@ export function fetchAiConversationMessages(id) {
   return request(`/api/ai/conversations/${encodeURIComponent(id)}/messages`)
 }
 
+export function appendAiConversationMessage(id, body) {
+  return request(`/api/ai/conversations/${encodeURIComponent(id)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export function updateAiConversation(id, body) {
   return request(`/api/ai/conversations/${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -542,28 +549,7 @@ function parseAiSseBlocks(buffer) {
   return { blocks: blocks.slice(0, -1), rest: blocks[blocks.length - 1] || '' }
 }
 
-/** Read a same-origin AI SSE stream. Keys never pass through this function. */
-export async function streamAiChat(body, { signal, onEvent } = {}, retry = true) {
-  const res = await fetch(`${API_BASE}/api/ai/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    credentials: 'include',
-    body: JSON.stringify(body),
-    signal,
-  })
-
-  if (res.status === 401 && retry) {
-    const user = await tryRefresh()
-    if (user) return streamAiChat(body, { signal, onEvent }, false)
-  }
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    const error = new Error(data.error || `Request failed (${res.status})`)
-    error.status = res.status
-    error.code = data.code || ''
-    throw error
-  }
+async function consumeAiSseResponse(res, { signal, onEvent } = {}) {
   if (!res.body) throw new Error('AI stream is empty')
 
   const reader = res.body.getReader()
@@ -599,5 +585,54 @@ export async function streamAiChat(body, { signal, onEvent } = {}, retry = true)
       onEvent?.(eventName, payload)
     }
   }
+  signal?.throwIfAborted?.()
   return lastPayload
+}
+
+/** Read a same-origin AI SSE stream. Keys never pass through this function. */
+export async function streamAiChat(body, { signal, onEvent } = {}, retry = true) {
+  const res = await fetch(`${API_BASE}/api/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (res.status === 401 && retry) {
+    const user = await tryRefresh()
+    if (user) return streamAiChat(body, { signal, onEvent }, false)
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    const error = new Error(data.error || `Request failed (${res.status})`)
+    error.status = res.status
+    error.code = data.code || ''
+    throw error
+  }
+  return consumeAiSseResponse(res, { signal, onEvent })
+}
+
+/** Stream a local Cursor CLI Relay. The token stays in the browser and never enters D1. */
+export async function streamCursorAgent(body, { relayUrl, token, signal, onEvent } = {}) {
+  const endpoint = String(relayUrl || '').trim().replace(/\/+$/, '')
+  if (!endpoint || !token) throw new Error('Cursor Agent Relay is not configured')
+  const res = await fetch(`${endpoint}/chat`, {
+    method: 'POST',
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+      'X-Cursor-Relay-Token': token,
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    const error = new Error(data.error || `Cursor Relay request failed (${res.status})`)
+    error.status = res.status
+    throw error
+  }
+  return consumeAiSseResponse(res, { signal, onEvent })
 }

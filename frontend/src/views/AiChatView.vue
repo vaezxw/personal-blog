@@ -46,7 +46,7 @@
             >
               <span class="ai-conversation-copy">
                 <strong>{{ conversation.title }}</strong>
-                <span class="muted">{{ conversation.model || t('ai.connectionUnavailable') }}</span>
+                <span class="muted">{{ conversationModel(conversation) }}</span>
               </span>
               <span class="ai-conversation-actions">
                 <span class="ai-conversation-date muted">{{ formatDate(conversation.updatedAt) }}</span>
@@ -165,16 +165,24 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  appendAiConversationMessage,
+  createAiConversation,
   deleteAiConversation,
   fetchAiConnections,
   fetchAiConversationMessages,
   fetchAiConversations,
   meCached,
+  streamCursorAgent,
   streamAiChat,
   updateAiConversation,
 } from '../api.js'
 import { useLocale } from '../composables/useLocale.js'
 import { renderAiMarkdown } from '../utils/renderAiMarkdown.js'
+import {
+  CURSOR_CONNECTION_ID,
+  cursorConnectionFromConfig,
+  getCursorRelayConfig,
+} from '../utils/cursorAgent.js'
 
 const { t, formatDate } = useLocale()
 const route = useRoute()
@@ -225,7 +233,8 @@ async function refreshUser() {
 async function loadConnections() {
   try {
     const data = await fetchAiConnections()
-    connections.value = data.connections || []
+    const localCursor = cursorConnectionFromConfig()
+    connections.value = [...(data.connections || []), ...(localCursor ? [localCursor] : [])]
     const routeConnection = String(route.query.connection || '')
     const preferred = routeConnection && connections.value.some((item) => item.id === routeConnection)
       ? routeConnection
@@ -260,7 +269,9 @@ async function loadMessages(id) {
     const data = await fetchAiConversationMessages(id)
     messages.value = data.messages || []
     const conversation = conversations.value.find((item) => item.id === id)
-    if (conversation?.connectionId && connections.value.some((item) => item.id === conversation.connectionId)) {
+    if (conversation?.provider === 'cursor-agent' && connections.value.some((item) => item.id === CURSOR_CONNECTION_ID)) {
+      selectedConnectionId.value = CURSOR_CONNECTION_ID
+    } else if (conversation?.connectionId && connections.value.some((item) => item.id === conversation.connectionId)) {
       selectedConnectionId.value = conversation.connectionId
     }
     await scrollToBottom()
@@ -269,6 +280,11 @@ async function loadMessages(id) {
   } finally {
     messagesLoading.value = false
   }
+}
+
+function conversationModel(conversation) {
+  if (conversation?.provider === 'cursor-agent') return t('ai.cursorTitle')
+  return conversation?.model || t('ai.connectionUnavailable')
 }
 
 async function openConversation(id) {
@@ -320,6 +336,21 @@ async function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
+async function ensureCursorConversation(text) {
+  if (activeConversationId.value && activeConversation.value?.provider === 'cursor-agent') {
+    return activeConversationId.value
+  }
+  const data = await createAiConversation({
+    source: 'cursor-agent',
+    title: text.replace(/\s+/g, ' ').slice(0, 48) || t('ai.newChat'),
+  })
+  const conversation = data.conversation
+  activeConversationId.value = conversation.id
+  conversations.value = [conversation, ...conversations.value.filter((item) => item.id !== conversation.id)]
+  await router.replace({ name: 'chat', query: { id: conversation.id } })
+  return conversation.id
+}
+
 async function sendMessage() {
   if (busy.value) return
   const text = draft.value.trim()
@@ -329,6 +360,18 @@ async function sendMessage() {
     return
   }
 
+  const connection = selectedConnection.value
+  const cursorMode = connection?.protocol === 'cursor-agent'
+  const history = messages.value
+    .filter((item) => item.status === 'complete' && item.content)
+    .map((item) => ({ role: item.role, content: item.content }))
+  const localUserId = `local-user-${Date.now()}`
+  const localAssistantId = `local-assistant-${Date.now() + 1}`
+  let localConversationId = ''
+  let localUserPersisted = false
+  let streamErrorCode = ''
+  let wasAborted = false
+
   busy.value = true
   chatError.value = ''
   lastFailedPrompt.value = text
@@ -336,14 +379,14 @@ async function sendMessage() {
   messages.value = [
     ...messages.value,
     {
-      id: `local-user-${Date.now()}`,
+      id: localUserId,
       role: 'user',
       content: text,
       status: 'complete',
     },
   ]
   streamingMessage.value = {
-    id: `local-assistant-${Date.now()}`,
+    id: localAssistantId,
     role: 'assistant',
     content: '',
     status: 'partial',
@@ -353,43 +396,96 @@ async function sendMessage() {
 
   let streamFailed = false
   try {
-    await streamAiChat(
-      {
-        conversationId: activeConversationId.value || undefined,
-        connectionId: selectedConnectionId.value,
-        message: text,
-      },
-      {
-        signal: abortController.value.signal,
-        onEvent(event, payload) {
-          if (event === 'start' && payload?.conversationId) {
-            activeConversationId.value = payload.conversationId
-            router.replace({ name: 'chat', query: { id: payload.conversationId } })
-          }
-          if (event === 'delta' && streamingMessage.value) {
-            streamingMessage.value.content += String(payload?.text || '')
-            scrollToBottom()
-          }
-          if (event === 'error') {
-            streamFailed = true
-            chatError.value = payload?.message || t('ai.error')
-            if (streamingMessage.value) streamingMessage.value.status = 'error'
-          }
+    if (cursorMode) {
+      const config = getCursorRelayConfig()
+      if (!config.enabled || !config.token) throw new Error(t('ai.cursorNotConfigured'))
+      localConversationId = await ensureCursorConversation(text)
+      await appendAiConversationMessage(localConversationId, { role: 'user', content: text })
+      localUserPersisted = true
+      await streamCursorAgent(
+        {
+          message: text,
+          history,
+          model: config.model,
         },
-      },
-    )
+        {
+          relayUrl: config.relayUrl,
+          token: config.token,
+          signal: abortController.value.signal,
+          onEvent(event, payload) {
+            if (event === 'delta' && streamingMessage.value) {
+              streamingMessage.value.content += String(payload?.text || '')
+              scrollToBottom()
+            }
+            if (event === 'error') {
+              streamFailed = true
+              streamErrorCode = payload?.code || 'CURSOR_AGENT_FAILED'
+              chatError.value = payload?.message || t('ai.error')
+              if (streamingMessage.value) streamingMessage.value.status = 'error'
+            }
+          },
+        },
+      )
+    } else {
+      await streamAiChat(
+        {
+          conversationId: activeConversationId.value || undefined,
+          connectionId: selectedConnectionId.value,
+          message: text,
+        },
+        {
+          signal: abortController.value.signal,
+          onEvent(event, payload) {
+            if (event === 'start' && payload?.conversationId) {
+              activeConversationId.value = payload.conversationId
+              router.replace({ name: 'chat', query: { id: payload.conversationId } })
+            }
+            if (event === 'delta' && streamingMessage.value) {
+              streamingMessage.value.content += String(payload?.text || '')
+              scrollToBottom()
+            }
+            if (event === 'error') {
+              streamFailed = true
+              chatError.value = payload?.message || t('ai.error')
+              if (streamingMessage.value) streamingMessage.value.status = 'error'
+            }
+          },
+        },
+      )
+    }
     if (!streamFailed && streamingMessage.value) streamingMessage.value.status = 'complete'
   } catch (error) {
-    if (error?.name !== 'AbortError' && error?.message !== 'The user aborted a request.') {
+    const aborted = error?.name === 'AbortError' || error?.message === 'The user aborted a request.'
+    if (aborted) {
+      wasAborted = true
+      if (cursorMode) streamFailed = true
+    } else {
       chatError.value = error.message || t('ai.error')
+      streamErrorCode = error.code || (cursorMode ? 'CURSOR_AGENT_FAILED' : '')
       streamFailed = true
       if (streamingMessage.value) streamingMessage.value.status = 'error'
     }
   } finally {
+    if (cursorMode && localConversationId && localUserPersisted && streamingMessage.value) {
+      const content = String(streamingMessage.value.content || '')
+      const status = streamFailed ? (content ? 'partial' : 'error') : 'complete'
+      try {
+        await appendAiConversationMessage(localConversationId, {
+          role: 'assistant',
+          content,
+          status,
+          errorCode: streamErrorCode || (wasAborted ? 'CLIENT_ABORTED' : undefined),
+        })
+      } catch (error) {
+        streamFailed = true
+        chatError.value = error.message || t('ai.error')
+        if (streamingMessage.value) streamingMessage.value.status = 'error'
+      }
+    }
     busy.value = false
     abortController.value = null
     if (streamFailed) {
-      if (streamingMessage.value) streamingMessage.value.status = 'error'
+      if (streamingMessage.value) streamingMessage.value.status = wasAborted ? 'partial' : 'error'
     } else {
       streamingMessage.value = null
       await loadConversations()
@@ -436,14 +532,20 @@ function onAuthChange() {
   initialize()
 }
 
+function onCursorRelayChange() {
+  initialize()
+}
+
 onMounted(() => {
   initialize()
   window.addEventListener('mohhen-auth-change', onAuthChange)
+  window.addEventListener('mohhen-cursor-relay-change', onCursorRelayChange)
 })
 
 onUnmounted(() => {
   abortController.value?.abort()
   window.removeEventListener('mohhen-auth-change', onAuthChange)
+  window.removeEventListener('mohhen-cursor-relay-change', onCursorRelayChange)
 })
 </script>
 
