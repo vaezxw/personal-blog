@@ -483,3 +483,121 @@ export function translateText({ text, from = 'auto', to = 'en' }) {
     body: JSON.stringify({ text, from, to }),
   })
 }
+
+export function fetchAiConnections() {
+  return request('/api/ai/connections')
+}
+
+export function createAiConnection(body) {
+  return request('/api/ai/connections', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateAiConnection(id, body) {
+  return request(`/api/ai/connections/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteAiConnection(id) {
+  return request(`/api/ai/connections/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export function testAiConnection(id) {
+  return request(`/api/ai/connections/${encodeURIComponent(id)}/test`, { method: 'POST' })
+}
+
+export function fetchAiConversations() {
+  return request('/api/ai/conversations')
+}
+
+export function createAiConversation(body = {}) {
+  return request('/api/ai/conversations', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function fetchAiConversationMessages(id) {
+  return request(`/api/ai/conversations/${encodeURIComponent(id)}/messages`)
+}
+
+export function updateAiConversation(id, body) {
+  return request(`/api/ai/conversations/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteAiConversation(id) {
+  return request(`/api/ai/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+function parseAiSseBlocks(buffer) {
+  const normalized = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const blocks = normalized.split('\n\n')
+  return { blocks: blocks.slice(0, -1), rest: blocks[blocks.length - 1] || '' }
+}
+
+/** Read a same-origin AI SSE stream. Keys never pass through this function. */
+export async function streamAiChat(body, { signal, onEvent } = {}, retry = true) {
+  const res = await fetch(`${API_BASE}/api/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (res.status === 401 && retry) {
+    const user = await tryRefresh()
+    if (user) return streamAiChat(body, { signal, onEvent }, false)
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    const error = new Error(data.error || `Request failed (${res.status})`)
+    error.status = res.status
+    error.code = data.code || ''
+    throw error
+  }
+  if (!res.body) throw new Error('AI stream is empty')
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let lastPayload = null
+
+  while (true) {
+    const result = await reader.read()
+    if (result.done) break
+    buffer += decoder.decode(result.value, { stream: true })
+    const parsed = parseAiSseBlocks(buffer)
+    buffer = parsed.rest
+    for (const block of parsed.blocks) {
+      const eventName = block
+        .split('\n')
+        .find((line) => line.startsWith('event:'))
+        ?.slice(6)
+        .trim() || 'message'
+      const data = block
+        .split('\n')
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n')
+      if (!data) continue
+      let payload
+      try {
+        payload = JSON.parse(data)
+      } catch {
+        continue
+      }
+      lastPayload = payload
+      onEvent?.(eventName, payload)
+    }
+  }
+  return lastPayload
+}

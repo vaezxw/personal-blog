@@ -10,6 +10,7 @@
           <RouterLink to="/">{{ t('nav.posts') }}</RouterLink>
           <RouterLink to="/about">{{ t('nav.about') }}</RouterLink>
           <RouterLink to="/tools">{{ t('nav.tools') }}</RouterLink>
+          <RouterLink to="/chat">{{ t('nav.chat') }}</RouterLink>
           <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">

@@ -91,6 +91,24 @@ npx wrangler d1 execute mohhen-blog-db --local --command "SELECT id, title, slug
 
 也可在 Cloudflare 控制台查看 **线上** 库：Workers & Pages → **D1 SQL Database** → `mohhen-blog-db` → **Tables** / **Console**。
 
+### AI 对话配置
+
+站点内的 `/chat` 支持登录用户接入自己的 OpenAI 兼容模型 API。模型配置和聊天历史保存在 D1，API Key 使用 Pages Secret 加密后保存，前端不会回显明文 Key。
+
+首次启用 AI 配置时，需要设置加密密钥（不要提交到仓库）：
+
+```powershell
+npx wrangler pages secret put AI_CONFIG_ENCRYPTION_KEY --project-name=mohhen-blog
+```
+
+可选地设置单用户每日请求上限：
+
+```powershell
+npx wrangler pages secret put AI_MAX_REQUESTS_PER_DAY --project-name=mohhen-blog
+```
+
+模型 API 必须是公网 HTTPS 的 OpenAI-compatible `/chat/completions` 接口。用户自己的 Ollama / LM Studio localhost 地址无法从 Cloudflare Pages Functions 访问。
+
 ### 旧版 Express 后端（可选，一般不用）
 
 仓库保留 `backend/`，为 Token + JSON 文件方案，**线上已不用**。

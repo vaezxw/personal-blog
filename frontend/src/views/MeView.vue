@@ -173,6 +173,10 @@
       </div>
 
       <nav class="me-hub" :aria-label="t('nav.me')">
+        <RouterLink class="me-hub-card" to="/chat">
+          <strong>{{ t('nav.chat') }}</strong>
+          <span class="muted">{{ t('ai.lede') }}</span>
+        </RouterLink>
         <RouterLink class="me-hub-card" to="/messages">
           <strong>{{ t('nav.messages') }}</strong>
           <span class="muted">{{ t('user.hubMessages') }}</span>
@@ -196,6 +200,8 @@
           <span class="muted">{{ t('user.hubStudio') }}</span>
         </RouterLink>
       </nav>
+
+      <AiConnectionSettings />
     </template>
   </section>
 </template>
@@ -205,6 +211,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getStoredUser, login, logout, meCached, register, setStoredUser } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import AiConnectionSettings from '../components/AiConnectionSettings.vue'
 
 const { t } = useLocale()
 const route = useRoute()
