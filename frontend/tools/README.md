@@ -17,6 +17,8 @@ node frontend/tools/cursor-agent-relay.mjs `
 
 默认使用 `ask` 模式，只读访问本地工作区；如果确实需要 Cursor Agent 执行经过你确认的操作，可以启动时加 `--mode agent`。Relay 始终只监听 `127.0.0.1`，网站请求还必须带配对令牌。
 
+Relay 会对启动命令中指定的固定工作区自动传递 Cursor CLI 的 `--trust`，避免每次对话弹出 Workspace Trust Required。它不会使用 `--yolo`，仍然保留 `ask` 模式和沙箱限制；只有你明确用 `--mode agent` 启动时，Agent 才会按 Cursor CLI 的权限执行工作区操作。
+
 环境变量可通过重复的 `--env KEY=VALUE` 传给 Cursor CLI，例如：
 
 ```powershell

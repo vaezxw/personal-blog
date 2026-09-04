@@ -9,6 +9,7 @@ import {
 import { decryptSecret, encryptSecret } from '../functions/api/_lib/secretBox.js'
 import {
   buildAgentPrompt,
+  cliArgs,
   extractCliDelta,
   extractCliResult,
   normalizeHistory,
@@ -78,6 +79,7 @@ test('parses Cursor CLI streaming output and bounds relay prompts', () => {
   assert.equal(extractCliResult({ type: 'result', result: 'finished' }), 'finished')
   assert.equal(normalizeMode('agent'), 'agent')
   assert.equal(normalizeMode('unsafe'), 'ask')
+  assert.ok(cliArgs('', 'ask').includes('--trust'))
   assert.equal(
     normalizeHistory([{ role: 'user', content: 'hello' }, { role: 'system', content: 'skip' }]).length,
     1,

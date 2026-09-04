@@ -222,7 +222,16 @@ function usageFromCli(payload) {
 }
 
 function cliArgs(model, mode) {
-  const args = ['-p', '--output-format', 'stream-json', '--stream-partial-output', `--mode=${normalizeMode(mode)}`, '--sandbox', 'enabled']
+  const args = [
+    '-p',
+    '--output-format',
+    'stream-json',
+    '--stream-partial-output',
+    `--mode=${normalizeMode(mode)}`,
+    '--sandbox',
+    'enabled',
+    '--trust',
+  ]
   if (model) args.push('--model', model)
   return args
 }
@@ -242,7 +251,7 @@ function spawnCli({ cliPath, workspace, prompt, model, mode, env }) {
   if (isWindowsCommand) {
     const script = [
       '$ErrorActionPreference = "Stop"',
-      '$cursorArgs = @("-p", "--output-format", "stream-json", "--stream-partial-output", ("--mode=" + $env:CURSOR_MODE), "--sandbox", "enabled")',
+      '$cursorArgs = @("-p", "--output-format", "stream-json", "--stream-partial-output", ("--mode=" + $env:CURSOR_MODE), "--sandbox", "enabled", "--trust")',
       'if ($env:CURSOR_MODEL) { $cursorArgs += @("--model", $env:CURSOR_MODEL) }',
       '$cursorArgs += $env:CURSOR_PROMPT',
       '& $env:CURSOR_CLI @cursorArgs',
@@ -432,7 +441,7 @@ function startServer(options) {
   return server
 }
 
-export { defaultCliPath, normalizeHistory, normalizeMode, parseArgs, startServer }
+export { cliArgs, defaultCliPath, normalizeHistory, normalizeMode, parseArgs, startServer }
 
 const isMain = process.argv[1] && path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1])
 if (isMain) startServer(parseArgs(process.argv.slice(2)))
