@@ -198,6 +198,7 @@ const messageScroller = ref(null)
 const composerRef = ref(null)
 const abortController = ref(null)
 const lastFailedPrompt = ref('')
+let initializePromise = null
 
 const activeConversation = computed(
   () => conversations.value.find((item) => item.id === activeConversationId.value) || null,
@@ -211,7 +212,10 @@ const visibleMessages = computed(() =>
 
 async function refreshUser() {
   try {
-    const data = await meCached({ force: true })
+    // meCached() updates the shared auth state after the first request. Using
+    // force here would re-trigger that event on every auth notification and
+    // make this page initialize itself indefinitely.
+    const data = await meCached()
     me.value = data.user
   } catch {
     me.value = null
@@ -408,13 +412,23 @@ async function retryLast() {
 }
 
 async function initialize() {
-  await refreshUser()
-  if (!me.value) return
-  await Promise.all([loadConnections(), loadConversations()])
-  const routeId = String(route.query.id || '')
-  if (routeId && conversations.value.some((item) => item.id === routeId)) {
-    activeConversationId.value = routeId
-    await loadMessages(routeId)
+  if (initializePromise) return initializePromise
+
+  initializePromise = (async () => {
+    await refreshUser()
+    if (!me.value) return
+    await Promise.all([loadConnections(), loadConversations()])
+    const routeId = String(route.query.id || '')
+    if (routeId && conversations.value.some((item) => item.id === routeId)) {
+      activeConversationId.value = routeId
+      await loadMessages(routeId)
+    }
+  })()
+
+  try {
+    await initializePromise
+  } finally {
+    initializePromise = null
   }
 }
 
