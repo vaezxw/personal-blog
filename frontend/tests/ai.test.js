@@ -88,5 +88,6 @@ test('parses Cursor CLI streaming output and bounds relay prompts', () => {
   )
   const prompt = buildAgentPrompt({ history: [{ role: 'user', content: 'hello' }], message: 'status' })
   assert.match(prompt, /Current user request:\nstatus/)
+  assert.match(prompt, /same language as the latest user request/)
   assert.equal(parseArgs(['--mode', 'agent', '--env', 'NO_PROXY=localhost']).mode, 'agent')
 })
