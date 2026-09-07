@@ -28,6 +28,13 @@ export const messages = {
       body: '你的账号已被禁言，暂时无法评论、发私信、发文或使用 AI 对话。如有疑问请联系管理员。',
       ok: '知道了',
     },
+    pwa: {
+      install: '安装应用',
+      installed: '已安装',
+      iosHintTitle: '添加到主屏幕',
+      iosHint: '在 Safari 点分享按钮，再选择「添加到主屏幕」。',
+      iosHintClose: '知道了',
+    },
     theme: {
       day: '昼',
       night: '夜',
@@ -745,6 +752,13 @@ export const messages = {
       title: 'Account muted',
       body: 'Your account is muted. You cannot comment, send messages, publish posts, or use AI chat right now. Contact an admin if you need help.',
       ok: 'Got it',
+    },
+    pwa: {
+      install: 'Install app',
+      installed: 'Installed',
+      iosHintTitle: 'Add to Home Screen',
+      iosHint: 'In Safari, tap Share, then choose “Add to Home Screen”.',
+      iosHintClose: 'Got it',
     },
     theme: {
       day: 'Day',

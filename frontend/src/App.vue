@@ -134,6 +134,17 @@
           </RouterLink>
 
           <button
+            v-if="canInstall || showIosInstall"
+            type="button"
+            class="pwa-install"
+            :aria-label="t('pwa.install')"
+            :title="t('pwa.install')"
+            @click="promptInstall"
+          >
+            {{ t('pwa.install') }}
+          </button>
+
+          <button
             type="button"
             class="lang-toggle"
             :aria-label="t('lang.label')"
@@ -198,6 +209,28 @@
     </footer>
     <BackToTop />
     <MuteNoticeModal />
+    <Teleport to="body">
+      <div
+        v-if="iosHintOpen"
+        class="pwa-ios-overlay"
+        role="presentation"
+        @click="closeIosHint"
+      >
+        <div
+          class="pwa-ios-dialog panel geek-panel"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('pwa.iosHintTitle')"
+          @click.stop
+        >
+          <h2>{{ t('pwa.iosHintTitle') }}</h2>
+          <p class="muted">{{ t('pwa.iosHint') }}</p>
+          <button type="button" class="btn" @click="closeIosHint">
+            {{ t('pwa.iosHintClose') }}
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -218,11 +251,13 @@ import {
   setStoredUser,
 } from './api'
 import { useLocale } from './composables/useLocale.js'
+import { usePwaInstall } from './composables/usePwaInstall.js'
 import { useTheme } from './composables/useTheme.js'
 import { hasPermission } from './utils/permissions.js'
 
 const { t, isEn, toggleLocale, formatDate } = useLocale()
 const { isDark, toggleTheme } = useTheme()
+const { canInstall, showIosInstall, iosHintOpen, promptInstall, closeIosHint } = usePwaInstall()
 const route = useRoute()
 const themeLabel = computed(() => (isDark.value ? t('theme.toDay') : t('theme.toNight')))
 
