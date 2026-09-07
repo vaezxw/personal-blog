@@ -484,6 +484,7 @@ import {
   togglePostLike,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import { assertNotMuted } from '../composables/useMuteNotice.js'
 import EmojiPicker from '../components/EmojiPicker.vue'
 import PostToc from '../components/PostToc.vue'
 import { renderPostContent } from '../utils/contentFormat.js'
@@ -970,6 +971,7 @@ async function openDmShare() {
 async function sendDmShare() {
   const selected = Array.isArray(dmSelected.value) ? dmSelected.value : []
   if (!selected.length) return
+  if (!assertNotMuted(currentUser.value)) return
   dmShareBusy.value = true
   dmShareError.value = ''
   try {
@@ -1032,6 +1034,7 @@ async function onFavorite() {
 }
 
 async function submitComment() {
+  if (!assertNotMuted(currentUser.value)) return
   commentBusy.value = true
   commentFormError.value = ''
   try {

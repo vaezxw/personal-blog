@@ -150,6 +150,7 @@ import {
   sendMessage,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import { assertNotMuted } from '../composables/useMuteNotice.js'
 import { parsePostShare, sharePreviewText } from '../utils/dmShare.js'
 
 const props = defineProps({
@@ -329,6 +330,7 @@ function closeThread() {
 async function onSend() {
   const text = draft.value.trim()
   if (!text || !activeUsername.value || sending.value) return
+  if (!assertNotMuted(me.value)) return
 
   sendError.value = ''
   sending.value = true

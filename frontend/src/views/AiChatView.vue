@@ -183,6 +183,7 @@ import {
   updateAiConversation,
 } from '../api.js'
 import { useLocale } from '../composables/useLocale.js'
+import { assertNotMuted } from '../composables/useMuteNotice.js'
 import { renderAiMarkdown } from '../utils/renderAiMarkdown.js'
 import { hasPermission } from '../utils/permissions.js'
 import {
@@ -363,6 +364,7 @@ async function sendMessage() {
   if (busy.value) return
   const text = draft.value.trim()
   if (!text) return
+  if (!assertNotMuted(me.value)) return
   if (!selectedConnectionId.value) {
     chatError.value = t('ai.noConnection')
     return

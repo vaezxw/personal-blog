@@ -23,6 +23,11 @@ export const messages = {
     common: {
       backTop: '回到顶部',
     },
+    mute: {
+      title: '账号已禁言',
+      body: '你的账号已被禁言，暂时无法评论、发私信、发文或使用 AI 对话。如有疑问请联系管理员。',
+      ok: '知道了',
+    },
     theme: {
       day: '昼',
       night: '夜',
@@ -727,6 +732,11 @@ export const messages = {
     },
     common: {
       backTop: 'Back to top',
+    },
+    mute: {
+      title: 'Account muted',
+      body: 'Your account is muted. You cannot comment, send messages, publish posts, or use AI chat right now. Contact an admin if you need help.',
+      ok: 'Got it',
     },
     theme: {
       day: 'Day',

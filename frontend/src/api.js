@@ -52,6 +52,9 @@ async function request(path, options = {}, retry = true) {
     const err = new Error(data.error || `Request failed (${res.status})`)
     err.status = res.status
     err.code = data.code || ''
+    if (err.code === 'muted') {
+      import('./composables/useMuteNotice.js').then((m) => m.showMuteNotice()).catch(() => {})
+    }
     throw err
   }
   return data
@@ -626,6 +629,9 @@ export async function streamAiChat(body, { signal, onEvent } = {}, retry = true)
     const error = new Error(data.error || `Request failed (${res.status})`)
     error.status = res.status
     error.code = data.code || ''
+    if (error.code === 'muted') {
+      import('./composables/useMuteNotice.js').then((m) => m.showMuteNotice()).catch(() => {})
+    }
     throw error
   }
   return consumeAiSseResponse(res, { signal, onEvent })

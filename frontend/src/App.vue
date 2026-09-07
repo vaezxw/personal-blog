@@ -197,6 +197,7 @@
       </div>
     </footer>
     <BackToTop />
+    <MuteNoticeModal />
   </div>
 </template>
 
@@ -204,6 +205,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BackToTop from './components/BackToTop.vue'
+import MuteNoticeModal from './components/MuteNoticeModal.vue'
 import SiteSearch from './components/SiteSearch.vue'
 import {
   fetchMessageUnreadCount,

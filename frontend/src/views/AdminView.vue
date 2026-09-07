@@ -596,6 +596,7 @@ import {
   uploadAvatar,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import { assertNotMuted } from '../composables/useMuteNotice.js'
 import RichTextEditor from '../components/RichTextEditor.vue'
 import { compressImageFile } from '../utils/avatar.js'
 import { isHtmlContent, markdownToHtml, renderPostContent } from '../utils/contentFormat.js'
@@ -1245,6 +1246,7 @@ async function submitPost() {
     formError.value = t('admin.pleaseLoginShort')
     return
   }
+  if (!assertNotMuted(user.value)) return
   saving.value = true
   formError.value = ''
   formOk.value = ''

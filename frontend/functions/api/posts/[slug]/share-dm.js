@@ -1,4 +1,4 @@
-import { requireUser } from '../../_lib/auth.js'
+import { requireNotMuted } from '../../_lib/auth.js'
 import { encodePostShare, sharePreviewText } from '../../_lib/dmShare.js'
 import {
   findOrCreateConversation,
@@ -15,7 +15,7 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return empty(204)
   if (request.method !== 'POST') return json(405, { error: 'Method not allowed' })
 
-  const auth = await requireUser(context)
+  const auth = await requireNotMuted(context)
   if (auth.error) return auth.error
   const { user } = auth
 
