@@ -10,8 +10,11 @@ export const PERMISSION_KEYS = [
   'dashboard.view',
 ]
 
-const USER_COLUMNS =
-  'id, email, username, role, created_at, avatar_url, permissions'
+const USER_COLUMNS_FALLBACK = [
+  'id, email, username, role, created_at, avatar_url, permissions, muted_at, deleted_at',
+  'id, email, username, role, created_at, avatar_url, permissions',
+  'id, email, username, role, created_at, avatar_url',
+]
 
 export function getJwtSecret(env) {
   return env?.JWT_SECRET || 'dev-jwt-secret-change-me'
@@ -25,6 +28,14 @@ export function getBearerToken(request) {
 
 export function isAdmin(user) {
   return user?.role === 'admin'
+}
+
+export function isMuted(user) {
+  return Boolean(user?.muted_at || user?.mutedAt || user?.muted)
+}
+
+export function isDeleted(user) {
+  return Boolean(user?.deleted_at || user?.deletedAt || user?.deleted)
 }
 
 export function parsePermissions(raw) {
@@ -93,6 +104,9 @@ export function publicUser(row) {
     createdAt: row.created_at,
     avatarUrl: row.avatar_url || null,
     permissions: normalizePermissions(row.permissions),
+    muted: isMuted(row),
+    mutedAt: row.muted_at || null,
+    deleted: isDeleted(row),
   }
 }
 
@@ -124,18 +138,17 @@ export function mapPost(row) {
 }
 
 async function loadUserById(env, id) {
-  try {
-    return await env.DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)
-      .bind(id)
-      .first()
-  } catch {
-    // Pre-migration DBs without permissions column
-    return await env.DB.prepare(
-      'SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?',
-    )
-      .bind(id)
-      .first()
+  for (const cols of USER_COLUMNS_FALLBACK) {
+    try {
+      const row = await env.DB.prepare(`SELECT ${cols} FROM users WHERE id = ?`)
+        .bind(id)
+        .first()
+      return row || null
+    } catch {
+      /* try next column set */
+    }
   }
+  return null
 }
 
 export async function optionalUser(context) {
@@ -144,7 +157,9 @@ export async function optionalUser(context) {
     const token = getBearerToken(request)
     const payload = await verifyJwt(token, getJwtSecret(env))
     if (!payload?.sub) return null
-    return (await loadUserById(env, payload.sub)) || null
+    const user = await loadUserById(env, payload.sub)
+    if (!user || isDeleted(user)) return null
+    return user
   } catch {
     return null
   }
@@ -158,7 +173,7 @@ export async function requireUser(context) {
     return { error: json(401, { error: 'Unauthorized' }) }
   }
   const user = await loadUserById(env, payload.sub)
-  if (!user) {
+  if (!user || isDeleted(user)) {
     return { error: json(401, { error: 'Unauthorized' }) }
   }
   return { user }
@@ -173,9 +188,21 @@ export async function requireAdmin(context) {
   return auth
 }
 
+export async function requireNotMuted(context) {
+  const auth = await requireUser(context)
+  if (auth.error) return auth
+  if (isMuted(auth.user) && !isAdmin(auth.user)) {
+    return { error: json(403, { error: 'Muted', code: 'muted' }) }
+  }
+  return auth
+}
+
 export async function requirePermission(context, key) {
   const auth = await requireUser(context)
   if (auth.error) return auth
+  if (isMuted(auth.user) && !isAdmin(auth.user) && (key === 'posts.publish' || key === 'ai.chat')) {
+    return { error: json(403, { error: 'Muted', code: 'muted' }) }
+  }
   if (!hasPermission(auth.user, key)) {
     return { error: json(403, { error: 'Forbidden' }) }
   }

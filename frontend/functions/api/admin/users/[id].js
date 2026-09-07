@@ -1,5 +1,7 @@
 import {
   isAdmin,
+  isDeleted,
+  isMuted,
   normalizePermissions,
   publicUser,
   requireAdmin,
@@ -13,33 +15,46 @@ function mapAdminUser(row) {
     email: row.email || null,
     permissions: normalizePermissions(row.permissions),
     isAdmin: isAdmin(row),
+    muted: isMuted(row),
+    mutedAt: row.muted_at || null,
+    deleted: isDeleted(row),
   }
 }
 
 async function loadUser(env, id) {
-  try {
-    return await env.DB.prepare(
-      `SELECT id, email, username, role, created_at, avatar_url, permissions
-       FROM users WHERE id = ?`,
-    )
-      .bind(id)
-      .first()
-  } catch {
-    return await env.DB.prepare(
-      `SELECT id, email, username, role, created_at, avatar_url
-       FROM users WHERE id = ?`,
-    )
-      .bind(id)
-      .first()
+  const queries = [
+    `SELECT id, email, username, role, created_at, avatar_url, permissions, muted_at, deleted_at
+     FROM users WHERE id = ?`,
+    `SELECT id, email, username, role, created_at, avatar_url, permissions
+     FROM users WHERE id = ?`,
+    `SELECT id, email, username, role, created_at, avatar_url
+     FROM users WHERE id = ?`,
+  ]
+  for (const sql of queries) {
+    try {
+      const row = await env.DB.prepare(sql).bind(id).first()
+      return row || null
+    } catch {
+      /* try next */
+    }
   }
+  return null
+}
+
+async function countAdmins(env) {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND (deleted_at IS NULL OR deleted_at = '')`,
+  )
+    .first()
+    .catch(async () =>
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM users WHERE role = 'admin'`).first(),
+    )
+  return Number(row?.c || 0)
 }
 
 export async function onRequest(context) {
   const { request, env, params } = context
   if (request.method === 'OPTIONS') return empty(204)
-  if (request.method !== 'PATCH' && request.method !== 'PUT') {
-    return json(405, { error: 'Method not allowed' })
-  }
 
   const auth = await requireAdmin(context)
   if (auth.error) return auth.error
@@ -48,7 +63,36 @@ export async function onRequest(context) {
   if (!id) return json(400, { error: 'id required' })
 
   const target = await loadUser(env, id)
-  if (!target) return json(404, { error: 'User not found' })
+  if (!target || isDeleted(target)) return json(404, { error: 'User not found' })
+
+  if (request.method === 'DELETE') {
+    if (target.id === auth.user.id) {
+      return json(400, { error: 'Cannot delete yourself' })
+    }
+    if (isAdmin(target) && (await countAdmins(env)) <= 1) {
+      return json(400, { error: 'Cannot delete the last admin' })
+    }
+    const now = new Date().toISOString()
+    try {
+      await env.DB.prepare('UPDATE users SET deleted_at = ? WHERE id = ?').bind(now, id).run()
+    } catch (err) {
+      const msg = String(err?.message || err || '')
+      if (/no such column: deleted_at/i.test(msg)) {
+        return json(503, { error: 'Moderation columns not migrated yet' })
+      }
+      return json(500, { error: msg || 'Delete failed' })
+    }
+    try {
+      await env.DB.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').bind(id).run()
+    } catch {
+      /* ignore */
+    }
+    return json(200, { ok: true })
+  }
+
+  if (request.method !== 'PATCH' && request.method !== 'PUT') {
+    return json(405, { error: 'Method not allowed' })
+  }
 
   let body
   try {
@@ -66,13 +110,8 @@ export async function onRequest(context) {
     if (target.id === auth.user.id && role !== 'admin') {
       return json(400, { error: 'Cannot demote yourself' })
     }
-    if (target.role === 'admin' && role !== 'admin') {
-      const row = await env.DB.prepare(
-        `SELECT COUNT(*) AS c FROM users WHERE role = 'admin'`,
-      ).first()
-      if (Number(row?.c || 0) <= 1) {
-        return json(400, { error: 'Cannot demote the last admin' })
-      }
+    if (target.role === 'admin' && role !== 'admin' && (await countAdmins(env)) <= 1) {
+      return json(400, { error: 'Cannot demote the last admin' })
     }
     nextRole = role
   }
@@ -80,38 +119,48 @@ export async function onRequest(context) {
   let nextPermissionsJson = null
   if (body.permissions !== undefined) {
     if (isAdmin({ ...target, role: nextRole })) {
-      // Admins always have full access; keep stored map empty/compat
       nextPermissionsJson = '{}'
     } else {
       nextPermissionsJson = serializePermissions(body.permissions)
     }
   }
 
-  try {
-    if (nextPermissionsJson !== null && nextRole !== target.role) {
-      await env.DB.prepare('UPDATE users SET role = ?, permissions = ? WHERE id = ?')
-        .bind(nextRole, nextPermissionsJson, id)
-        .run()
-    } else if (nextRole !== target.role) {
-      await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?')
-        .bind(nextRole, id)
-        .run()
-    } else if (nextPermissionsJson !== null) {
-      await env.DB.prepare('UPDATE users SET permissions = ? WHERE id = ?')
-        .bind(nextPermissionsJson, id)
-        .run()
+  let nextMutedAt = undefined
+  if (body.muted !== undefined) {
+    if (target.id === auth.user.id && body.muted) {
+      return json(400, { error: 'Cannot mute yourself' })
     }
-  } catch (err) {
-    const msg = String(err?.message || err || '')
-    if (/no such column: permissions/i.test(msg)) {
-      if (nextRole !== target.role) {
-        await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?')
-          .bind(nextRole, id)
-          .run()
-      } else {
-        return json(503, { error: 'Permissions column not migrated yet' })
+    if (isAdmin({ ...target, role: nextRole }) && body.muted) {
+      return json(400, { error: 'Cannot mute an admin' })
+    }
+    nextMutedAt = body.muted ? new Date().toISOString() : null
+  }
+
+  const sets = []
+  const binds = []
+  if (nextRole !== target.role) {
+    sets.push('role = ?')
+    binds.push(nextRole)
+  }
+  if (nextPermissionsJson !== null) {
+    sets.push('permissions = ?')
+    binds.push(nextPermissionsJson)
+  }
+  if (nextMutedAt !== undefined) {
+    sets.push('muted_at = ?')
+    binds.push(nextMutedAt)
+  }
+
+  if (sets.length) {
+    try {
+      await env.DB.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`)
+        .bind(...binds, id)
+        .run()
+    } catch (err) {
+      const msg = String(err?.message || err || '')
+      if (/no such column: (permissions|muted_at)/i.test(msg)) {
+        return json(503, { error: 'Run latest D1 migrations first' })
       }
-    } else {
       return json(500, { error: msg || 'Update failed' })
     }
   }

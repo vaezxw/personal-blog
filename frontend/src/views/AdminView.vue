@@ -486,77 +486,74 @@
         </div>
         <p v-if="usersLoading" class="muted">{{ t('home.loading') }}</p>
         <p v-else-if="usersError" class="error">{{ usersError }}</p>
-        <div v-else class="users-table-wrap">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>{{ t('admin.username') }}</th>
-                <th>{{ t('admin.usersRole') }}</th>
-                <th>{{ t('perm.postsPublish') }}</th>
-                <th>{{ t('perm.aiChat') }}</th>
-                <th>{{ t('perm.toolsUse') }}</th>
-                <th>{{ t('perm.dashboardView') }}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in adminUsers" :key="row.id">
-                <td>
-                  <strong>@{{ row.username }}</strong>
-                  <span v-if="row.email" class="muted users-email">{{ row.email }}</span>
-                </td>
-                <td>
+        <div v-else class="users-list">
+          <article v-for="row in adminUsers" :key="row.id" class="user-card" :class="{ muted: row.muted }">
+            <div class="user-card-top">
+              <div class="user-card-id">
+                <strong>@{{ row.username }}</strong>
+                <span v-if="row.email" class="muted users-email">{{ row.email }}</span>
+                <span v-if="row.muted" class="user-badge warn">{{ t('admin.usersMuted') }}</span>
+                <span v-if="row.draftRole === 'admin'" class="user-badge">{{ t('admin.roleAdmin') }}</span>
+              </div>
+              <label class="user-field">
+                <span>{{ t('admin.usersRole') }}</span>
+                <div class="select-wrap">
                   <select
                     v-model="row.draftRole"
-                    :disabled="row.id === user.id || row.saving"
+                    :disabled="row.id === user.id || row.saving || row.acting"
                   >
                     <option value="author">{{ t('admin.roleAuthor') }}</option>
                     <option value="admin">{{ t('admin.roleAdmin') }}</option>
                   </select>
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    v-model="row.draftPerms['posts.publish']"
-                    :disabled="row.draftRole === 'admin' || row.saving"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    v-model="row.draftPerms['ai.chat']"
-                    :disabled="row.draftRole === 'admin' || row.saving"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    v-model="row.draftPerms['tools.use']"
-                    :disabled="row.draftRole === 'admin' || row.saving"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    v-model="row.draftPerms['dashboard.view']"
-                    :disabled="row.draftRole === 'admin' || row.saving"
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    class="btn ghost"
-                    :disabled="row.saving || !userRowDirty(row)"
-                    @click="saveUserRow(row)"
-                  >
-                    {{ row.saving ? t('admin.saving') : t('admin.usersSave') }}
-                  </button>
-                  <p v-if="row.ok" class="ok users-row-msg">{{ row.ok }}</p>
-                  <p v-if="row.error" class="error users-row-msg">{{ row.error }}</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              </label>
+            </div>
+
+            <div class="user-perms" :aria-label="t('admin.usersPerms')">
+              <label
+                v-for="key in PERMISSION_KEYS"
+                :key="key"
+                class="perm-chip"
+                :class="{ on: row.draftPerms[key] || row.draftRole === 'admin', locked: row.draftRole === 'admin' }"
+              >
+                <input
+                  type="checkbox"
+                  v-model="row.draftPerms[key]"
+                  :disabled="row.draftRole === 'admin' || row.saving || row.acting"
+                />
+                <span>{{ permLabel(key) }}</span>
+              </label>
+            </div>
+
+            <div class="user-card-actions">
+              <button
+                type="button"
+                class="btn ghost"
+                :disabled="row.saving || row.acting || !userRowDirty(row)"
+                @click="saveUserRow(row)"
+              >
+                {{ row.saving ? t('admin.saving') : t('admin.usersSave') }}
+              </button>
+              <button
+                type="button"
+                class="btn ghost"
+                :disabled="row.acting || row.saving || row.id === user.id || row.role === 'admin'"
+                @click="toggleMuteUser(row)"
+              >
+                {{ row.muted ? t('admin.usersUnmute') : t('admin.usersMute') }}
+              </button>
+              <button
+                type="button"
+                class="btn danger ghost"
+                :disabled="row.acting || row.saving || row.id === user.id"
+                @click="removeUser(row)"
+              >
+                {{ t('admin.usersDelete') }}
+              </button>
+              <p v-if="row.ok" class="ok users-row-msg">{{ row.ok }}</p>
+              <p v-if="row.error" class="error users-row-msg">{{ row.error }}</p>
+            </div>
+          </article>
         </div>
       </div>
     </template>
@@ -568,6 +565,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   createPost,
+  deleteAdminUser,
   deletePost,
   fetchAdminUsers,
   fetchAllPosts,
@@ -727,14 +725,26 @@ function mapAdminUserRow(u) {
   const perms = normalizePermissions(u.permissions)
   return {
     ...u,
+    muted: Boolean(u.muted),
     draftRole: u.role,
     draftPerms: { ...perms },
     baselineRole: u.role,
     baselinePerms: { ...perms },
     saving: false,
+    acting: false,
     ok: '',
     error: '',
   }
+}
+
+function permLabel(key) {
+  const map = {
+    'posts.publish': 'perm.postsPublish',
+    'ai.chat': 'perm.aiChat',
+    'tools.use': 'perm.toolsUse',
+    'dashboard.view': 'perm.dashboardView',
+  }
+  return t(map[key] || key)
 }
 
 function userRowDirty(row) {
@@ -784,6 +794,41 @@ async function saveUserRow(row) {
     row.error = err.message || t('admin.saveFailed')
   } finally {
     row.saving = false
+  }
+}
+
+async function toggleMuteUser(row) {
+  row.acting = true
+  row.ok = ''
+  row.error = ''
+  try {
+    const muted = !row.muted
+    const data = await updateAdminUser(row.id, { muted })
+    const next = mapAdminUserRow(data.user)
+    const idx = adminUsers.value.findIndex((u) => u.id === row.id)
+    if (idx >= 0) {
+      next.ok = muted ? t('admin.usersMuteOk') : t('admin.usersUnmuteOk')
+      adminUsers.value[idx] = next
+    }
+  } catch (err) {
+    row.error = err.message || t('admin.saveFailed')
+  } finally {
+    row.acting = false
+  }
+}
+
+async function removeUser(row) {
+  const ok = window.confirm(t('admin.usersDeleteConfirm', { user: row.username }))
+  if (!ok) return
+  row.acting = true
+  row.ok = ''
+  row.error = ''
+  try {
+    await deleteAdminUser(row.id)
+    adminUsers.value = adminUsers.value.filter((u) => u.id !== row.id)
+  } catch (err) {
+    row.error = err.message || t('admin.saveFailed')
+    row.acting = false
   }
 }
 
@@ -1446,42 +1491,167 @@ onMounted(restoreSession)
   margin: 0;
 }
 
-.users-table-wrap {
-  overflow-x: auto;
+.users-list {
+  display: grid;
+  gap: 0.85rem;
 }
 
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
+.user-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
 
-.users-table th,
-.users-table td {
-  padding: 0.65rem 0.55rem;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  vertical-align: middle;
+.user-card.muted {
+  border-color: color-mix(in srgb, #c45c26 35%, var(--line));
+  background: color-mix(in srgb, #c45c26 6%, var(--surface));
 }
 
-.users-table th {
-  color: var(--muted);
-  font-weight: 600;
-  white-space: nowrap;
+.user-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.user-card-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  min-width: 0;
+}
+
+.user-card-id strong {
+  font-size: 1.02rem;
 }
 
 .users-email {
   display: block;
+  width: 100%;
   font-size: 0.78rem;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.user-badge.warn {
+  border-color: color-mix(in srgb, #c45c26 45%, var(--line));
+  color: #c45c26;
+  background: color-mix(in srgb, #c45c26 10%, transparent);
+}
+
+.user-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 9.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.45rem 2.1rem 0.45rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.select-wrap select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.select-wrap select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.user-perms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.perm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.perm-chip input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.perm-chip.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.perm-chip.locked {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.user-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
 }
 
 .users-row-msg {
-  margin: 0.35rem 0 0;
+  margin: 0;
+  width: 100%;
   font-size: 0.78rem;
-}
-
-.users-table select {
-  max-width: 7.5rem;
 }
 
 .composer-head {

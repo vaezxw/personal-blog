@@ -1,4 +1,4 @@
-import { requireUser } from '../_lib/auth.js'
+import { isDeleted, requireNotMuted, requireUser } from '../_lib/auth.js'
 import { newId } from '../_lib/crypto.js'
 import {
   MESSAGE_MAX_LEN,
@@ -10,13 +10,20 @@ import {
 import { empty, json, readJson } from '../_lib/response.js'
 
 async function loadPeer(db, username) {
-  return db
-    .prepare(
-      `SELECT id, username, avatar_url, role, created_at
-       FROM users WHERE username = ? COLLATE NOCASE`,
-    )
-    .bind(username)
-    .first()
+  const queries = [
+    `SELECT id, username, avatar_url, role, created_at, deleted_at
+     FROM users WHERE username = ? COLLATE NOCASE`,
+    `SELECT id, username, avatar_url, role, created_at
+     FROM users WHERE username = ? COLLATE NOCASE`,
+  ]
+  for (const sql of queries) {
+    try {
+      return await db.prepare(sql).bind(username).first()
+    } catch {
+      /* try next */
+    }
+  }
+  return null
 }
 
 async function markRead(db, conversationId, viewerId) {
@@ -65,7 +72,7 @@ export async function onRequest(context) {
   if (!username) return json(400, { error: 'username required' })
 
   const peer = await loadPeer(env.DB, username)
-  if (!peer) return json(404, { error: 'User not found' })
+  if (!peer || isDeleted(peer)) return json(404, { error: 'User not found' })
   if (peer.id === user.id) return json(400, { error: 'Cannot message yourself' })
 
   if (request.method === 'GET') {
@@ -124,6 +131,9 @@ export async function onRequest(context) {
   }
 
   if (request.method === 'POST') {
+    const muteAuth = await requireNotMuted(context)
+    if (muteAuth.error) return muteAuth.error
+
     let body
     try {
       body = await readJson(request)

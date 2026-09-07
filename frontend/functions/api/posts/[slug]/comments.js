@@ -2,7 +2,7 @@ import { newId } from '../../_lib/crypto.js'
 import { COMMENT_SELECT, mapComment } from '../../_lib/comments.js'
 import { createNotification } from '../../_lib/notifications.js'
 import { notifyMentions } from '../../_lib/mentions.js'
-import { optionalUser, requireUser } from '../../_lib/auth.js'
+import { optionalUser, requireNotMuted } from '../../_lib/auth.js'
 import { empty, json, readJson } from '../../_lib/response.js'
 import { canViewPost, visibilityDeniedPayload } from '../../_lib/visibility.js'
 
@@ -37,7 +37,7 @@ export async function onRequest(context) {
   }
 
   if (request.method === 'POST') {
-    const auth = await requireUser(context)
+    const auth = await requireNotMuted(context)
     if (auth.error) return auth.error
 
     try {

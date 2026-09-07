@@ -310,6 +310,12 @@ export function updateAdminUser(id, body) {
   })
 }
 
+export function deleteAdminUser(id) {
+  return request(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
 export function fetchComments(slug) {
   return request(`/api/posts/${encodeURIComponent(slug)}/comments`)
 }

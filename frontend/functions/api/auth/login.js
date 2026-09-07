@@ -18,26 +18,29 @@ export async function onRequest(context) {
       return json(400, { error: 'email/username and password are required' })
     }
 
-    let user
-    try {
-      user = await env.DB.prepare(
-        `SELECT id, email, username, password_hash, role, created_at, avatar_url, permissions
-         FROM users
-         WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
-      )
-        .bind(login, login)
-        .first()
-    } catch {
-      user = await env.DB.prepare(
-        `SELECT id, email, username, password_hash, role, created_at, avatar_url
-         FROM users
-         WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
-      )
-        .bind(login, login)
-        .first()
+    const loginQueries = [
+      `SELECT id, email, username, password_hash, role, created_at, avatar_url, permissions, muted_at, deleted_at
+       FROM users
+       WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
+      `SELECT id, email, username, password_hash, role, created_at, avatar_url, permissions
+       FROM users
+       WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
+      `SELECT id, email, username, password_hash, role, created_at, avatar_url
+       FROM users
+       WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE`,
+    ]
+
+    let user = null
+    for (const sql of loginQueries) {
+      try {
+        user = await env.DB.prepare(sql).bind(login, login).first()
+        break
+      } catch {
+        /* try next */
+      }
     }
 
-    if (!user || !(await verifyPassword(password, user.password_hash))) {
+    if (!user || user.deleted_at || !(await verifyPassword(password, user.password_hash))) {
       return json(401, { error: 'Invalid credentials' })
     }
 
