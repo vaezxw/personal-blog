@@ -191,8 +191,8 @@ onUnmounted(() => {
 }
 
 .site-search-form input {
-  width: min(15rem, 42vw);
-  min-width: 8.5rem;
+  width: min(12.5rem, 28vw);
+  min-width: 7.5rem;
   height: 2.35rem;
   padding: 0 0.85rem;
   border-radius: 999px;
@@ -202,6 +202,11 @@ onUnmounted(() => {
   box-shadow: var(--shadow);
   font: inherit;
   font-size: 0.9rem;
+}
+
+html[lang='en'] .site-search-form input {
+  width: min(10.5rem, 22vw);
+  min-width: 6.5rem;
 }
 
 .site-search-form input:focus {

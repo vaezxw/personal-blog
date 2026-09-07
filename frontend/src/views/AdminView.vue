@@ -480,80 +480,91 @@
             <h2>{{ t('admin.tabUsers') }}</h2>
             <p class="muted">{{ t('admin.usersLede') }}</p>
           </div>
-          <button type="button" class="btn ghost" :disabled="usersLoading" @click="loadUsers">
+          <button type="button" class="btn ghost users-refresh" :disabled="usersLoading" @click="loadUsers">
             {{ t('admin.refresh') }}
           </button>
         </div>
-        <p v-if="usersLoading" class="muted">{{ t('home.loading') }}</p>
-        <p v-else-if="usersError" class="error">{{ usersError }}</p>
-        <div v-else class="users-list">
-          <article v-for="row in adminUsers" :key="row.id" class="user-card" :class="{ muted: row.muted }">
-            <div class="user-card-top">
-              <div class="user-card-id">
+        <p v-if="usersLoading" class="muted users-status">{{ t('home.loading') }}</p>
+        <p v-else-if="usersError" class="error users-status">{{ usersError }}</p>
+        <div v-else class="users-scroll">
+          <div class="users-list" role="list">
+            <article
+              v-for="row in adminUsers"
+              :key="row.id"
+              class="user-row"
+              :class="{ muted: row.muted, dirty: userRowDirty(row) }"
+              role="listitem"
+            >
+              <div class="user-identity">
                 <strong>@{{ row.username }}</strong>
-                <span v-if="row.email" class="muted users-email">{{ row.email }}</span>
-                <span v-if="row.muted" class="user-badge warn">{{ t('admin.usersMuted') }}</span>
-                <span v-if="row.draftRole === 'admin'" class="user-badge">{{ t('admin.roleAdmin') }}</span>
+                <span v-if="row.email" class="muted users-email" :title="row.email">{{ row.email }}</span>
+                <div class="user-badges">
+                  <span v-if="row.muted" class="user-badge warn">{{ t('admin.usersMuted') }}</span>
+                  <span v-if="row.draftRole === 'admin'" class="user-badge">{{ t('admin.roleAdmin') }}</span>
+                </div>
               </div>
+
               <label class="user-field">
-                <span>{{ t('admin.usersRole') }}</span>
+                <span class="sr-only">{{ t('admin.usersRole') }}</span>
                 <div class="select-wrap">
                   <select
                     v-model="row.draftRole"
                     :disabled="row.id === user.id || row.saving || row.acting"
+                    :aria-label="t('admin.usersRole')"
                   >
                     <option value="author">{{ t('admin.roleAuthor') }}</option>
                     <option value="admin">{{ t('admin.roleAdmin') }}</option>
                   </select>
                 </div>
               </label>
-            </div>
 
-            <div class="user-perms" :aria-label="t('admin.usersPerms')">
-              <label
-                v-for="key in PERMISSION_KEYS"
-                :key="key"
-                class="perm-chip"
-                :class="{ on: row.draftPerms[key] || row.draftRole === 'admin', locked: row.draftRole === 'admin' }"
-              >
-                <input
-                  type="checkbox"
-                  v-model="row.draftPerms[key]"
-                  :disabled="row.draftRole === 'admin' || row.saving || row.acting"
-                />
-                <span>{{ permLabel(key) }}</span>
-              </label>
-            </div>
+              <div class="user-perms" :aria-label="t('admin.usersPerms')">
+                <label
+                  v-for="key in PERMISSION_KEYS"
+                  :key="key"
+                  class="perm-chip"
+                  :class="{ on: row.draftPerms[key] || row.draftRole === 'admin', locked: row.draftRole === 'admin' }"
+                >
+                  <input
+                    type="checkbox"
+                    v-model="row.draftPerms[key]"
+                    :disabled="row.draftRole === 'admin' || row.saving || row.acting"
+                  />
+                  <span>{{ permLabel(key) }}</span>
+                </label>
+              </div>
 
-            <div class="user-card-actions">
-              <button
-                type="button"
-                class="btn ghost"
-                :disabled="row.saving || row.acting || !userRowDirty(row)"
-                @click="saveUserRow(row)"
-              >
-                {{ row.saving ? t('admin.saving') : t('admin.usersSave') }}
-              </button>
-              <button
-                type="button"
-                class="btn ghost"
-                :disabled="row.acting || row.saving || row.id === user.id || row.role === 'admin'"
-                @click="toggleMuteUser(row)"
-              >
-                {{ row.muted ? t('admin.usersUnmute') : t('admin.usersMute') }}
-              </button>
-              <button
-                type="button"
-                class="btn danger ghost"
-                :disabled="row.acting || row.saving || row.id === user.id"
-                @click="removeUser(row)"
-              >
-                {{ t('admin.usersDelete') }}
-              </button>
+              <div class="user-actions" :aria-label="t('admin.usersActions')">
+                <button
+                  type="button"
+                  class="btn ghost sm"
+                  :disabled="row.saving || row.acting || !userRowDirty(row)"
+                  @click="saveUserRow(row)"
+                >
+                  {{ row.saving ? t('admin.saving') : t('admin.usersSave') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn ghost sm"
+                  :disabled="row.acting || row.saving || row.id === user.id || row.role === 'admin'"
+                  @click="toggleMuteUser(row)"
+                >
+                  {{ row.muted ? t('admin.usersUnmute') : t('admin.usersMute') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn danger ghost sm"
+                  :disabled="row.acting || row.saving || row.id === user.id"
+                  @click="removeUser(row)"
+                >
+                  {{ t('admin.usersDelete') }}
+                </button>
+              </div>
+
               <p v-if="row.ok" class="ok users-row-msg">{{ row.ok }}</p>
               <p v-if="row.error" class="error users-row-msg">{{ row.error }}</p>
-            </div>
-          </article>
+            </article>
+          </div>
         </div>
       </div>
     </template>
@@ -739,10 +750,10 @@ function mapAdminUserRow(u) {
 
 function permLabel(key) {
   const map = {
-    'posts.publish': 'perm.postsPublish',
-    'ai.chat': 'perm.aiChat',
-    'tools.use': 'perm.toolsUse',
-    'dashboard.view': 'perm.dashboardView',
+    'posts.publish': 'admin.chipPublish',
+    'ai.chat': 'admin.chipAi',
+    'tools.use': 'admin.chipTools',
+    'dashboard.view': 'admin.chipDash',
   }
   return t(map[key] || key)
 }
@@ -1327,6 +1338,18 @@ onMounted(restoreSession)
   margin-bottom: 1.25rem;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .studio-gate {
   display: grid;
   gap: 0.85rem;
@@ -1450,7 +1473,17 @@ onMounted(restoreSession)
   display: flex;
   gap: 0.35rem;
   margin-bottom: 0.85rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.1rem;
+}
+
+.studio-tabs::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .studio-tabs button {
@@ -1460,6 +1493,8 @@ onMounted(restoreSession)
   border-radius: 999px;
   padding: 0.4rem 0.95rem;
   font-size: 0.9rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 
@@ -1471,80 +1506,134 @@ onMounted(restoreSession)
 }
 
 .users-panel {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: min(68dvh, calc(100dvh - 13.5rem));
+  min-height: 14rem;
+  overflow: hidden;
 }
 
 .users-head {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.85rem;
   align-items: flex-start;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .users-head h2 {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
 }
 
 .users-head p {
   margin: 0;
+  max-width: 42rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.users-refresh {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.86rem;
+}
+
+.users-status {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.users-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.users-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .users-list {
   display: grid;
-  gap: 0.85rem;
+  gap: 0;
 }
 
-.user-card {
+.user-row {
   display: grid;
-  gap: 0.85rem;
-  padding: 1rem 1.05rem;
-  border: 1px solid var(--line);
-  border-radius: 0.85rem;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-}
-
-.user-card.muted {
-  border-color: color-mix(in srgb, #c45c26 35%, var(--line));
-  background: color-mix(in srgb, #c45c26 6%, var(--surface));
-}
-
-.user-card-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.user-card-id {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: minmax(7.5rem, 1.05fr) 7.25rem minmax(11rem, 1.6fr) auto;
+  gap: 0.55rem 0.75rem;
   align-items: center;
-  gap: 0.4rem 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+
+.user-row:last-child {
+  border-bottom: none;
+}
+
+.user-row:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.user-row.muted {
+  background: color-mix(in srgb, #c45c26 7%, transparent);
+}
+
+.user-row.dirty {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.user-identity {
+  display: grid;
+  gap: 0.12rem;
   min-width: 0;
 }
 
-.user-card-id strong {
-  font-size: 1.02rem;
+.user-identity strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .users-email {
   display: block;
-  width: 100%;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
 }
 
 .user-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.12rem 0.45rem;
+  padding: 0.08rem 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--line);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.02em;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .user-badge.warn {
@@ -1554,11 +1643,8 @@ onMounted(restoreSession)
 }
 
 .user-field {
-  display: grid;
-  gap: 0.35rem;
-  min-width: 9.5rem;
-  font-size: 0.78rem;
-  color: var(--muted);
+  display: block;
+  min-width: 0;
 }
 
 .select-wrap {
@@ -1568,10 +1654,10 @@ onMounted(restoreSession)
 .select-wrap::after {
   content: '';
   position: absolute;
-  right: 0.85rem;
+  right: 0.7rem;
   top: 50%;
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.4rem;
+  height: 0.4rem;
   border-right: 1.5px solid var(--muted);
   border-bottom: 1.5px solid var(--muted);
   transform: translateY(-65%) rotate(45deg);
@@ -1582,15 +1668,14 @@ onMounted(restoreSession)
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  min-height: 2.35rem;
-  padding: 0.45rem 2.1rem 0.45rem 0.8rem;
+  min-height: 2.1rem;
+  padding: 0.35rem 1.85rem 0.35rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 0.7rem;
+  border-radius: 0.6rem;
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: 0.92rem;
-  box-shadow: var(--shadow);
+  font-size: 0.86rem;
   cursor: pointer;
 }
 
@@ -1608,26 +1693,31 @@ onMounted(restoreSession)
 .user-perms {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
 .perm-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
+  gap: 0.28rem;
+  padding: 0.22rem 0.5rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+  line-height: 1.2;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
 .perm-chip input {
   accent-color: var(--accent);
   margin: 0;
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .perm-chip.on {
@@ -1641,17 +1731,77 @@ onMounted(restoreSession)
   cursor: default;
 }
 
-.user-card-actions {
+.user-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.45rem 0.55rem;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.btn.sm {
+  padding: 0.32rem 0.65rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
 }
 
 .users-row-msg {
+  grid-column: 1 / -1;
   margin: 0;
-  width: 100%;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 980px) {
+  .user-row {
+    grid-template-columns: minmax(0, 1fr) 7rem;
+    grid-template-areas:
+      'id role'
+      'perms perms'
+      'actions actions'
+      'msg msg';
+  }
+
+  .user-identity {
+    grid-area: id;
+  }
+
+  .user-field {
+    grid-area: role;
+  }
+
+  .user-perms {
+    grid-area: perms;
+  }
+
+  .user-actions {
+    grid-area: actions;
+    justify-content: flex-start;
+  }
+
+  .users-row-msg {
+    grid-area: msg;
+  }
+
+  .users-panel {
+    max-height: min(72dvh, calc(100dvh - 11rem));
+  }
+}
+
+@media (max-width: 640px) {
+  .user-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'id'
+      'role'
+      'perms'
+      'actions'
+      'msg';
+    padding: 0.75rem;
+  }
+
+  .user-actions {
+    flex-wrap: wrap;
+  }
 }
 
 .composer-head {
