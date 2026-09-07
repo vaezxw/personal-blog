@@ -245,8 +245,8 @@ async function loadConnections() {
   }
 }
 
-async function loadConversations() {
-  conversationsLoading.value = true
+async function loadConversations(showLoading = true) {
+  if (showLoading) conversationsLoading.value = true
   conversationError.value = ''
   try {
     const data = await fetchAiConversations()
@@ -254,7 +254,7 @@ async function loadConversations() {
   } catch (error) {
     conversationError.value = error.message || t('ai.loadFailed')
   } finally {
-    conversationsLoading.value = false
+    if (showLoading) conversationsLoading.value = false
   }
 }
 
@@ -369,6 +369,9 @@ async function sendMessage() {
   const localAssistantId = `local-assistant-${Date.now() + 1}`
   let localConversationId = ''
   let localUserPersisted = false
+  let persistedAssistantMessage = null
+  let remoteUserMessageId = ''
+  let remoteAssistantMessageId = ''
   let streamErrorCode = ''
   let wasAborted = false
 
@@ -400,8 +403,13 @@ async function sendMessage() {
       const config = getCursorRelayConfig()
       if (!config.enabled || !config.token) throw new Error(t('ai.cursorNotConfigured'))
       localConversationId = await ensureCursorConversation(text)
-      await appendAiConversationMessage(localConversationId, { role: 'user', content: text })
+      const savedUser = await appendAiConversationMessage(localConversationId, { role: 'user', content: text })
       localUserPersisted = true
+      if (savedUser?.message?.id) {
+        messages.value = messages.value.map((item) =>
+          item.id === localUserId ? { ...item, id: savedUser.message.id } : item,
+        )
+      }
       await streamCursorAgent(
         {
           message: text,
@@ -440,6 +448,10 @@ async function sendMessage() {
               activeConversationId.value = payload.conversationId
               router.replace({ name: 'chat', query: { id: payload.conversationId } })
             }
+            if (event === 'start' || event === 'done') {
+              remoteUserMessageId = payload?.userMessageId || remoteUserMessageId
+              remoteAssistantMessageId = payload?.messageId || remoteAssistantMessageId
+            }
             if (event === 'delta' && streamingMessage.value) {
               streamingMessage.value.content += String(payload?.text || '')
               scrollToBottom()
@@ -470,12 +482,13 @@ async function sendMessage() {
       const content = String(streamingMessage.value.content || '')
       const status = streamFailed ? (content ? 'partial' : 'error') : 'complete'
       try {
-        await appendAiConversationMessage(localConversationId, {
+        const savedAssistant = await appendAiConversationMessage(localConversationId, {
           role: 'assistant',
           content,
           status,
           errorCode: streamErrorCode || (wasAborted ? 'CLIENT_ABORTED' : undefined),
         })
+        persistedAssistantMessage = savedAssistant?.message || null
       } catch (error) {
         streamFailed = true
         chatError.value = error.message || t('ai.error')
@@ -487,9 +500,19 @@ async function sendMessage() {
     if (streamFailed) {
       if (streamingMessage.value) streamingMessage.value.status = wasAborted ? 'partial' : 'error'
     } else {
+      const completedMessage = persistedAssistantMessage || {
+        ...(streamingMessage.value || {}),
+        id: remoteAssistantMessageId || localAssistantId,
+        status: 'complete',
+      }
+      if (remoteUserMessageId) {
+        messages.value = messages.value.map((item) =>
+          item.id === localUserId ? { ...item, id: remoteUserMessageId } : item,
+        )
+      }
+      messages.value = [...messages.value, completedMessage]
       streamingMessage.value = null
-      await loadConversations()
-      if (activeConversationId.value) await loadMessages(activeConversationId.value)
+      await loadConversations(false)
     }
     await scrollToBottom()
   }
