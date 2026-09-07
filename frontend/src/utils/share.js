@@ -1,9 +1,36 @@
 /** Lightweight in-app + third-party share helpers (no SDK). */
 
+import { getProfile } from '../data/profile.js'
+
+const FALLBACK_PUBLIC_ORIGIN = 'https://mohhen-blog.pages.dev'
+
+function publicSiteOrigin() {
+  const blog = getProfile('zh')?.blog || FALLBACK_PUBLIC_ORIGIN
+  try {
+    return new URL(blog).origin
+  } catch {
+    return FALLBACK_PUBLIC_ORIGIN
+  }
+}
+
+/** Prefer the live site origin when sharing from localhost / preview hosts. */
+export function shareOrigin() {
+  if (typeof window === 'undefined') return publicSiteOrigin()
+  const { hostname, origin } = window.location
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname.endsWith('.local')
+  ) {
+    return publicSiteOrigin()
+  }
+  return origin
+}
+
 export function pageShareUrl(path = '/') {
-  if (typeof window === 'undefined') return ''
   const normalized = path.startsWith('/') ? path : `/${path}`
-  return `${window.location.origin}${normalized}`
+  return `${shareOrigin()}${normalized}`
 }
 
 export function postShareUrl(slug) {
