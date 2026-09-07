@@ -546,6 +546,14 @@
                 <button
                   type="button"
                   class="btn ghost sm"
+                  :disabled="row.acting || row.saving"
+                  @click="resetUserPassword(row)"
+                >
+                  {{ t('admin.usersResetPw') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn ghost sm"
                   :disabled="row.acting || row.saving || row.id === user.id || row.role === 'admin'"
                   @click="toggleMuteUser(row)"
                 >
@@ -567,6 +575,37 @@
           </div>
         </div>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="resetPwOpen"
+          class="reset-pw-overlay"
+          role="presentation"
+          @click="closeResetPw"
+        >
+          <div
+            class="reset-pw-dialog panel geek-panel"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="t('admin.usersResetPwTitle')"
+            @click.stop
+          >
+            <h2>{{ t('admin.usersResetPwTitle') }}</h2>
+            <p class="muted">
+              @{{ resetPwUsername }} · {{ t('admin.usersResetPwHint') }}
+            </p>
+            <code class="reset-pw-value mono">{{ resetPwValue }}</code>
+            <div class="reset-pw-actions">
+              <button type="button" class="btn" @click="copyResetPw">
+                {{ resetPwCopied ? t('admin.usersResetPwCopied') : t('admin.usersResetPwCopy') }}
+              </button>
+              <button type="button" class="btn ghost" @click="closeResetPw">
+                {{ t('admin.usersResetPwClose') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </template>
   </section>
 </template>
@@ -586,6 +625,7 @@ import {
   logout,
   meCached,
   peekPostCache,
+  resetAdminUserPassword,
   setStoredUser,
   takeRepostSourceStash,
   updateAdminUser,
@@ -622,6 +662,10 @@ const editingId = ref('')
 const adminUsers = ref([])
 const usersLoading = ref(false)
 const usersError = ref('')
+const resetPwOpen = ref(false)
+const resetPwValue = ref('')
+const resetPwUsername = ref('')
+const resetPwCopied = ref(false)
 const contentMode = ref('rich')
 /** Markdown 工作区：edit | split | preview */
 const mdPane = ref('edit')
@@ -822,6 +866,46 @@ async function toggleMuteUser(row) {
       next.ok = muted ? t('admin.usersMuteOk') : t('admin.usersUnmuteOk')
       adminUsers.value[idx] = next
     }
+  } catch (err) {
+    row.error = err.message || t('admin.saveFailed')
+  } finally {
+    row.acting = false
+  }
+}
+
+function closeResetPw() {
+  resetPwOpen.value = false
+  resetPwValue.value = ''
+  resetPwUsername.value = ''
+  resetPwCopied.value = false
+}
+
+async function copyResetPw() {
+  const text = resetPwValue.value
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    resetPwCopied.value = true
+  } catch {
+    resetPwCopied.value = false
+  }
+}
+
+async function resetUserPassword(row) {
+  const ok = window.confirm(t('admin.usersResetPwConfirm', { user: row.username }))
+  if (!ok) return
+  row.acting = true
+  row.ok = ''
+  row.error = ''
+  try {
+    const data = await resetAdminUserPassword(row.id)
+    const next = mapAdminUserRow(data.user)
+    const idx = adminUsers.value.findIndex((u) => u.id === row.id)
+    if (idx >= 0) adminUsers.value[idx] = next
+    resetPwUsername.value = row.username
+    resetPwValue.value = data.temporaryPassword || ''
+    resetPwCopied.value = false
+    resetPwOpen.value = true
   } catch (err) {
     row.error = err.message || t('admin.saveFailed')
   } finally {
@@ -1735,10 +1819,67 @@ onMounted(restoreSession)
 
 .user-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.3rem;
+}
+
+.reset-pw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, #020617 58%, transparent);
+  backdrop-filter: blur(4px);
+  box-sizing: border-box;
+}
+
+.reset-pw-dialog {
+  width: min(100%, 24rem);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.2rem 1.15rem 1.1rem;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px color-mix(in srgb, #000 35%, transparent);
+}
+
+.reset-pw-dialog h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.reset-pw-dialog p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.reset-pw-value {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 85%, var(--accent));
+  color: var(--ink);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  word-break: break-all;
+}
+
+.reset-pw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .btn.sm {

@@ -134,6 +134,17 @@ export function randomToken() {
     .replace(/=+$/g, '')
 }
 
+/** Human-friendly temporary password for admin resets (no ambiguous chars). */
+export function generateTempPassword(length = 12) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(length))
+  let out = ''
+  for (let i = 0; i < length; i += 1) {
+    out += alphabet[bytes[i] % alphabet.length]
+  }
+  return out
+}
+
 export async function hashToken(token) {
   const digest = await crypto.subtle.digest('SHA-256', textToBytes(token))
   return bytesToBase64(new Uint8Array(digest))

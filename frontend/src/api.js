@@ -313,6 +313,13 @@ export function updateAdminUser(id, body) {
   })
 }
 
+export function resetAdminUserPassword(id) {
+  return request(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ resetPassword: true }),
+  })
+}
+
 export function deleteAdminUser(id) {
   return request(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: 'DELETE',

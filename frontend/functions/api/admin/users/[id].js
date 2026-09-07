@@ -7,6 +7,7 @@ import {
   requireAdmin,
   serializePermissions,
 } from '../../_lib/auth.js'
+import { generateTempPassword, hashPassword } from '../../_lib/crypto.js'
 import { empty, json, readJson } from '../../_lib/response.js'
 
 function mapAdminUser(row) {
@@ -99,6 +100,28 @@ export async function onRequest(context) {
     body = await readJson(request)
   } catch {
     return json(400, { error: 'Invalid JSON body' })
+  }
+
+  if (body.resetPassword) {
+    const temporaryPassword = generateTempPassword(12)
+    const passwordHash = await hashPassword(temporaryPassword)
+    try {
+      await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+        .bind(passwordHash, id)
+        .run()
+    } catch (err) {
+      return json(500, { error: err?.message || 'Password reset failed' })
+    }
+    try {
+      await env.DB.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').bind(id).run()
+    } catch {
+      /* ignore */
+    }
+    const updated = await loadUser(env, id)
+    return json(200, {
+      user: mapAdminUser(updated),
+      temporaryPassword,
+    })
   }
 
   let nextRole = target.role
