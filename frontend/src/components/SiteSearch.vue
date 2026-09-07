@@ -1,9 +1,30 @@
 <template>
-  <div class="site-search" ref="rootRef">
+  <div class="site-search" :class="{ expanded: mobileOpen }" ref="rootRef">
+    <button
+      type="button"
+      class="site-search-toggle"
+      :aria-label="t('search.title')"
+      :title="t('search.title')"
+      :aria-expanded="mobileOpen"
+      @click="openMobile"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+        <path
+          d="M16.2 16.2 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+
     <form class="site-search-form" role="search" @submit.prevent="submitSearch">
       <label class="sr-only" for="header-site-search">{{ t('search.placeholder') }}</label>
       <input
         id="header-site-search"
+        ref="inputRef"
         v-model="query"
         type="search"
         enterkeyhint="search"
@@ -11,8 +32,16 @@
         :placeholder="t('search.placeholderShort')"
         @focus="onFocus"
         @input="onInput"
-        @keydown.escape.prevent="close"
+        @keydown.escape.prevent="onEscape"
       />
+      <button
+        type="button"
+        class="site-search-close"
+        :aria-label="t('search.close')"
+        @click="closeMobile"
+      >
+        ×
+      </button>
     </form>
 
     <div
@@ -36,7 +65,7 @@
             :key="u.id"
             class="site-search-item"
             :to="{ name: 'user', params: { username: u.username } }"
-            @click="close"
+            @click="closeAll"
           >
             <span class="site-search-avatar" aria-hidden="true">
               <img v-if="u.avatarUrl" :src="u.avatarUrl" alt="" />
@@ -52,19 +81,15 @@
         <div v-if="posts.length" class="site-search-group">
           <p class="site-search-label">{{ t('search.postsTitle', { count: posts.length }) }}</p>
           <RouterLink
-            v-for="post in posts"
-            :key="post.id"
+            v-for="p in posts"
+            :key="p.id"
             class="site-search-item"
-            :to="{ name: 'post', params: { slug: post.slug } }"
-            @click="close"
+            :to="{ name: 'post', params: { slug: p.slug } }"
+            @click="closeAll"
           >
             <span class="site-search-text">
-              <strong>{{ post.title }}</strong>
-              <span class="muted">
-                {{ post.authorUsername ? `@${post.authorUsername}` : '' }}
-                <template v-if="post.authorUsername"> · </template>
-                {{ formatDate(post.createdAt) }}
-              </span>
+              <strong>{{ p.title }}</strong>
+              <span v-if="p.excerpt" class="muted">{{ p.excerpt }}</span>
             </span>
           </RouterLink>
         </div>
@@ -74,25 +99,27 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { searchSite } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 
-const { t, formatDate } = useLocale()
+const { t } = useLocale()
 const route = useRoute()
 
 const rootRef = ref(null)
+const inputRef = ref(null)
 const query = ref('')
-const activeQuery = ref('')
 const open = ref(false)
+const mobileOpen = ref(false)
 const loading = ref(false)
 const searched = ref(false)
 const error = ref('')
+const activeQuery = ref('')
 const posts = ref([])
 const users = ref([])
 
-let debounceTimer = null
+let debounceTimer = 0
 let requestSeq = 0
 
 const hasResults = computed(() => posts.value.length > 0 || users.value.length > 0)
@@ -101,12 +128,33 @@ function close() {
   open.value = false
 }
 
+function closeMobile() {
+  mobileOpen.value = false
+  close()
+}
+
+function closeAll() {
+  closeMobile()
+}
+
 function clearResults() {
   posts.value = []
   users.value = []
   searched.value = false
   error.value = ''
   activeQuery.value = ''
+}
+
+async function openMobile() {
+  mobileOpen.value = true
+  open.value = true
+  await nextTick()
+  inputRef.value?.focus()
+}
+
+function onEscape() {
+  if (mobileOpen.value) closeMobile()
+  else close()
 }
 
 async function runSearch(raw) {
@@ -161,17 +209,17 @@ function submitSearch() {
 }
 
 function onDocPointerDown(event) {
-  if (!open.value) return
+  if (!open.value && !mobileOpen.value) return
   const el = event.target
   if (!(el instanceof Element)) return
   if (rootRef.value?.contains(el)) return
-  close()
+  closeMobile()
 }
 
 watch(
   () => route.fullPath,
   () => {
-    close()
+    closeAll()
   },
 )
 
@@ -180,14 +228,47 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  clearTimeout(debounceTimer)
   document.removeEventListener('pointerdown', onDocPointerDown)
+  clearTimeout(debounceTimer)
 })
 </script>
 
 <style scoped>
 .site-search {
   position: relative;
+}
+
+.site-search-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  padding: 0;
+}
+
+.site-search-toggle svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.site-search-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.site-search-form {
+  position: relative;
+  display: block;
+}
+
+.site-search-close {
+  display: none;
 }
 
 .site-search-form input {
@@ -237,29 +318,23 @@ html[lang='en'] .site-search-form input {
 
 html.dark .site-search-panel {
   background: color-mix(in srgb, #0f172a 94%, var(--accent));
-  border-color: color-mix(in srgb, var(--line) 70%, var(--accent));
-  box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.55),
-    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .site-search-hint {
-  margin: 0;
-  padding: 0.65rem 0.55rem;
-  font-size: 0.88rem;
+  margin: 0.35rem 0.4rem;
+  font-size: 0.86rem;
 }
 
 .site-search-group + .site-search-group {
-  margin-top: 0.35rem;
-  padding-top: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
   border-top: 1px solid var(--line);
 }
 
 .site-search-label {
-  margin: 0;
-  padding: 0.35rem 0.55rem 0.2rem;
+  margin: 0 0.4rem 0.35rem;
   font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -267,16 +342,15 @@ html.dark .site-search-panel {
 .site-search-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem;
+  gap: 0.55rem;
+  padding: 0.5rem 0.45rem;
   border-radius: 10px;
   text-decoration: none;
   color: inherit;
 }
 
 .site-search-item:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: inherit;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 html.dark .site-search-item:hover {
@@ -284,19 +358,17 @@ html.dark .site-search-item:hover {
 }
 
 .site-search-avatar {
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 8px;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   overflow: hidden;
-  flex-shrink: 0;
-  font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--accent);
-  background: var(--stat-bg);
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  flex-shrink: 0;
 }
 
 .site-search-avatar img {
@@ -312,17 +384,17 @@ html.dark .site-search-item:hover {
 }
 
 .site-search-text strong {
-  font-size: 0.92rem;
-  white-space: nowrap;
+  font-size: 0.9rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .site-search-text .muted {
-  font-size: 0.78rem;
-  white-space: nowrap;
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sr-only {
@@ -337,14 +409,62 @@ html.dark .site-search-item:hover {
   border: 0;
 }
 
-@media (max-width: 720px) {
-  .site-search-form input {
-    width: min(11rem, 36vw);
+@media (max-width: 760px) {
+  .site-search-toggle {
+    display: inline-flex;
+  }
+
+  .site-search:not(.expanded) .site-search-form {
+    display: none;
+  }
+
+  .site-search.expanded {
+    position: static;
+  }
+
+  .site-search.expanded .site-search-toggle {
+    display: none;
+  }
+
+  .site-search.expanded .site-search-form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: max(0.55rem, env(safe-area-inset-top, 0px));
+    z-index: 90;
+  }
+
+  .site-search.expanded .site-search-form input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .site-search-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 1.25rem;
+    line-height: 1;
+    flex-shrink: 0;
   }
 
   .site-search-panel {
-    right: auto;
-    left: 0;
+    position: fixed;
+    top: calc(max(0.55rem, env(safe-area-inset-top, 0px)) + 3.1rem);
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    max-height: min(65vh, 22rem);
   }
 }
 </style>

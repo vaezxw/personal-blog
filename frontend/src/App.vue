@@ -120,6 +120,14 @@
               <RouterLink v-if="canStudio" class="me-item" to="/admin" @click="meOpen = false">
                 {{ t('nav.admin') }}
               </RouterLink>
+              <div class="me-item-row">
+                <button type="button" class="me-item me-item-inline" @click="toggleLocale">
+                  {{ t('lang.label') }} · {{ isEn ? 'EN' : '中' }}
+                </button>
+                <button type="button" class="me-item me-item-inline" @click="toggleTheme">
+                  {{ themeLabel }}
+                </button>
+              </div>
               <button type="button" class="me-item me-item-logout" @click="onLogout">
                 {{ t('admin.logout') }}
               </button>
@@ -146,7 +154,7 @@
 
           <button
             type="button"
-            class="lang-toggle"
+            class="lang-toggle desktop-only-tool"
             :aria-label="t('lang.label')"
             :title="t('lang.label')"
             @click="toggleLocale"
@@ -157,7 +165,7 @@
           </button>
           <button
             type="button"
-            class="theme-toggle"
+            class="theme-toggle desktop-only-tool"
             :class="{ dark: isDark }"
             :aria-label="themeLabel"
             :title="themeLabel"
@@ -189,6 +197,48 @@
             </span>
             <span class="theme-text mono">{{ isDark ? t('theme.night') : t('theme.day') }}</span>
           </button>
+
+          <!-- Guest mobile: compact lang/theme -->
+          <button
+            v-if="!currentUser"
+            type="button"
+            class="mobile-icon-btn mobile-only-tool"
+            :aria-label="t('lang.label')"
+            :title="t('lang.label')"
+            @click="toggleLocale"
+          >
+            {{ isEn ? 'EN' : '中' }}
+          </button>
+          <button
+            v-if="!currentUser"
+            type="button"
+            class="mobile-icon-btn mobile-only-tool theme-icon"
+            :class="{ dark: isDark }"
+            :aria-label="themeLabel"
+            :title="themeLabel"
+            :aria-pressed="isDark"
+            @click="toggleTheme"
+          >
+            <svg v-if="!isDark" class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+              <g stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none">
+                <line x1="12" y1="2" x2="12" y2="5" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="5" y2="12" />
+                <line x1="19" y1="12" x2="22" y2="12" />
+                <line x1="4.9" y1="4.9" x2="7" y2="7" />
+                <line x1="17" y1="17" x2="19.1" y2="19.1" />
+                <line x1="4.9" y1="19.1" x2="7" y2="17" />
+                <line x1="17" y1="7" x2="19.1" y2="4.9" />
+              </g>
+            </svg>
+            <svg v-else class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M20.2 14.3A8.2 8.2 0 0 1 9.7 3.8a8.5 8.5 0 1 0 10.5 10.5z"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </header>
@@ -199,6 +249,40 @@
         </KeepAlive>
       </RouterView>
     </main>
+
+    <nav class="mobile-tabbar" :aria-label="t('nav.posts')">
+      <RouterLink
+        to="/"
+        custom
+        v-slot="{ href, navigate, isExactActive }"
+      >
+        <a
+          :href="href"
+          class="mobile-tab"
+          :class="{ 'router-link-active': isExactActive }"
+          :aria-label="t('nav.posts')"
+          @click="navigate"
+        >
+          <span class="mobile-tab-label">{{ t('nav.posts') }}</span>
+        </a>
+      </RouterLink>
+      <RouterLink class="mobile-tab" to="/about" :aria-label="t('nav.about')">
+        <span class="mobile-tab-label">{{ t('nav.about') }}</span>
+      </RouterLink>
+      <RouterLink v-if="canTools" class="mobile-tab" to="/tools" :aria-label="t('nav.tools')">
+        <span class="mobile-tab-label">{{ t('nav.tools') }}</span>
+      </RouterLink>
+      <RouterLink v-if="canChat" class="mobile-tab" to="/chat" :aria-label="t('nav.chat')">
+        <span class="mobile-tab-label">{{ t('nav.chat') }}</span>
+      </RouterLink>
+      <RouterLink
+        class="mobile-tab"
+        :to="currentUser ? '/me' : { name: 'me' }"
+        :aria-label="t('nav.me')"
+      >
+        <span class="mobile-tab-label">{{ t('nav.me') }}</span>
+      </RouterLink>
+    </nav>
     <footer class="site-footer">
       <div class="footer-inner">
         <p class="footer-brand">{{ t('footer.brand') }}</p>
