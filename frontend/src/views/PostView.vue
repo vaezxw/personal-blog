@@ -32,97 +32,101 @@
     </header>
 
     <div id="likes" class="engage-bar" :class="{ flash: highlightTarget === 'likes' }">
-      <span class="engage-stat muted">{{ t('post.views', { count: post.viewCount || 0 }) }}</span>
-      <span class="engage-stat muted">{{ t('post.commentsCount', { count: post.commentCount || comments.length || 0 }) }}</span>
-      <button
-        type="button"
-        class="like-btn"
-        :class="{ active: post.likedByMe, busy: likeBusy }"
-        :disabled="likeBusy || dislikeBusy"
-        @click="onLike"
-      >
-        <span aria-hidden="true">{{ post.likedByMe ? '♥' : '♡' }}</span>
-        {{ t('post.likes', { count: post.likeCount || 0 }) }}
-      </button>
-      <button
-        type="button"
-        class="like-btn dislike-btn"
-        :class="{ active: post.dislikedByMe, busy: dislikeBusy }"
-        :disabled="dislikeBusy || likeBusy"
-        @click="onDislike"
-      >
-        <span aria-hidden="true">{{ post.dislikedByMe ? '▼' : '▽' }}</span>
-        {{ t('post.dislikes', { count: post.dislikeCount || 0 }) }}
-      </button>
-      <button
-        type="button"
-        class="like-btn favorite-btn"
-        :class="{ active: post.favoritedByMe, busy: favoriteBusy }"
-        :disabled="favoriteBusy"
-        @click="onFavorite"
-      >
-        <span aria-hidden="true">{{ post.favoritedByMe ? '★' : '☆' }}</span>
-        {{ t('post.favorites', { count: post.favoriteCount || 0 }) }}
-      </button>
-      <button
-        v-if="canRepost"
-        type="button"
-        class="share-btn repost-trigger"
-        @click="goRepost"
-      >
-        {{ t('post.repostAction') }}
-      </button>
-      <div class="share-wrap" ref="shareWrapRef">
+      <div class="engage-meta">
+        <span class="engage-stat muted">{{ t('post.views', { count: post.viewCount || 0 }) }}</span>
+        <span class="engage-stat muted">{{ t('post.commentsCount', { count: post.commentCount || comments.length || 0 }) }}</span>
+      </div>
+      <div class="engage-actions">
         <button
           type="button"
-          class="share-btn share-trigger"
-          :aria-expanded="shareOpen"
-          :aria-controls="'share-panel'"
-          @click.stop="toggleShare"
+          class="like-btn"
+          :class="{ active: post.likedByMe, busy: likeBusy }"
+          :disabled="likeBusy || dislikeBusy"
+          @click="onLike"
         >
-          {{ t('share.open') }}
+          <span aria-hidden="true">{{ post.likedByMe ? '♥' : '♡' }}</span>
+          {{ t('post.likes', { count: post.likeCount || 0 }) }}
         </button>
-        <div
-          v-if="shareOpen"
-          id="share-panel"
-          class="share-panel geek-surface"
-          role="dialog"
-          :aria-label="t('share.open')"
-          @click.stop
+        <button
+          type="button"
+          class="like-btn dislike-btn"
+          :class="{ active: post.dislikedByMe, busy: dislikeBusy }"
+          :disabled="dislikeBusy || likeBusy"
+          @click="onDislike"
         >
-          <p class="share-panel-title">{{ t('share.panelTitle') }}</p>
-          <div class="share-actions">
-            <button type="button" class="share-action" @click="onCopyLink">
-              <span class="share-ico" aria-hidden="true">⧉</span>
-              {{ t('share.copy') }}
-            </button>
-            <button type="button" class="share-action" @click="onShareWeibo">
-              <span class="share-ico" aria-hidden="true">微</span>
-              {{ t('share.weibo') }}
-            </button>
-            <button type="button" class="share-action" @click="onShareX">
-              <span class="share-ico" aria-hidden="true">𝕏</span>
-              {{ t('share.x') }}
-            </button>
-            <button type="button" class="share-action" @click.stop="openDmShare">
-              <span class="share-ico" aria-hidden="true">✉</span>
-              {{ t('share.dm') }}
-            </button>
-            <button
-              v-if="nativeShareAvailable"
-              type="button"
-              class="share-action"
-              @click="onSystemShare"
-            >
-              <span class="share-ico" aria-hidden="true">↑</span>
-              {{ t('share.system') }}
-            </button>
+          <span aria-hidden="true">{{ post.dislikedByMe ? '▼' : '▽' }}</span>
+          {{ t('post.dislikes', { count: post.dislikeCount || 0 }) }}
+        </button>
+        <button
+          type="button"
+          class="like-btn favorite-btn"
+          :class="{ active: post.favoritedByMe, busy: favoriteBusy }"
+          :disabled="favoriteBusy"
+          @click="onFavorite"
+        >
+          <span aria-hidden="true">{{ post.favoritedByMe ? '★' : '☆' }}</span>
+          {{ t('post.favorites', { count: post.favoriteCount || 0 }) }}
+        </button>
+        <button
+          v-if="canRepost"
+          type="button"
+          class="share-btn repost-trigger"
+          @click="goRepost"
+        >
+          {{ t('post.repostAction') }}
+        </button>
+        <div class="share-wrap" ref="shareWrapRef">
+          <button
+            type="button"
+            class="share-btn share-trigger"
+            :aria-expanded="shareOpen"
+            :aria-controls="'share-panel'"
+            @click.stop="toggleShare"
+          >
+            {{ t('share.open') }}
+          </button>
+          <div
+            v-if="shareOpen"
+            id="share-panel"
+            class="share-panel geek-surface"
+            role="dialog"
+            :aria-label="t('share.open')"
+            @click.stop
+          >
+            <p class="share-panel-title">{{ t('share.panelTitle') }}</p>
+            <div class="share-actions">
+              <button type="button" class="share-action" @click="onCopyLink">
+                <span class="share-ico" aria-hidden="true">⧉</span>
+                {{ t('share.copy') }}
+              </button>
+              <button type="button" class="share-action" @click="onShareWeibo">
+                <span class="share-ico" aria-hidden="true">微</span>
+                {{ t('share.weibo') }}
+              </button>
+              <button type="button" class="share-action" @click="onShareX">
+                <span class="share-ico" aria-hidden="true">𝕏</span>
+                {{ t('share.x') }}
+              </button>
+              <button type="button" class="share-action" @click.stop="openDmShare">
+                <span class="share-ico" aria-hidden="true">✉</span>
+                {{ t('share.dm') }}
+              </button>
+              <button
+                v-if="nativeShareAvailable"
+                type="button"
+                class="share-action"
+                @click="onSystemShare"
+              >
+                <span class="share-ico" aria-hidden="true">↑</span>
+                {{ t('share.system') }}
+              </button>
+            </div>
+            <div class="share-qr">
+              <img :src="shareQrSrc" :alt="t('share.qrAlt')" width="132" height="132" />
+              <p class="muted">{{ t('share.qrHint') }}</p>
+            </div>
+            <p v-if="shareHint" class="share-feedback" :class="{ ok: shareOk }">{{ shareHint }}</p>
           </div>
-          <div class="share-qr">
-            <img :src="shareQrSrc" :alt="t('share.qrAlt')" width="132" height="132" />
-            <p class="muted">{{ t('share.qrHint') }}</p>
-          </div>
-          <p v-if="shareHint" class="share-feedback" :class="{ ok: shareOk }">{{ shareHint }}</p>
         </div>
       </div>
       <p v-if="likeHint" class="muted like-hint">
@@ -1245,9 +1249,25 @@ watch(
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1rem;
+  gap: 0.65rem 0.85rem;
   margin: 1rem 0 1.5rem;
   scroll-margin-top: 5rem;
+}
+
+.engage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+}
+
+.engage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .engage-stat {
@@ -1541,7 +1561,19 @@ watch(
   margin-left: auto;
 }
 
+.engage-actions .share-wrap {
+  margin-left: 0;
+}
+
+.engage-actions .like-btn,
+.engage-actions .share-btn {
+  justify-content: center;
+}
+
 .share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
@@ -2058,7 +2090,46 @@ watch(
   }
 
   .engage-bar {
-    gap: 0.55rem 0.75rem;
+    display: grid;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .engage-meta {
+    gap: 0.65rem;
+  }
+
+  .engage-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    width: 100%;
+    flex: none;
+  }
+
+  .engage-actions .like-btn,
+  .engage-actions .share-btn,
+  .engage-actions .share-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .engage-actions .like-btn,
+  .engage-actions .share-btn {
+    padding: 0.42rem 0.5rem;
+    font-size: 0.82rem;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .engage-actions .share-wrap .share-btn {
+    width: 100%;
+  }
+
+  .engage-actions .share-panel {
+    left: 0;
+    right: auto;
+    width: min(17.5rem, calc(100vw - 2rem));
   }
 
   .article-toc-rail,
