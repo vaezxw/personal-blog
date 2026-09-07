@@ -272,8 +272,9 @@ onUnmounted(() => {
 }
 
 .site-search-form input {
-  width: min(12.5rem, 28vw);
-  min-width: 7.5rem;
+  width: clamp(7rem, 12vw, 11rem);
+  min-width: 0;
+  max-width: 11rem;
   height: 2.35rem;
   padding: 0 0.85rem;
   border-radius: 999px;
@@ -283,11 +284,12 @@ onUnmounted(() => {
   box-shadow: var(--shadow);
   font: inherit;
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 html[lang='en'] .site-search-form input {
-  width: min(10.5rem, 22vw);
-  min-width: 6.5rem;
+  width: clamp(6.5rem, 11vw, 10rem);
+  max-width: 10rem;
 }
 
 .site-search-form input:focus {

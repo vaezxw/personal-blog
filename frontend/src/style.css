@@ -213,7 +213,7 @@ textarea:focus-visible {
 }
 
 .shell {
-  width: min(920px, calc(100% - 2rem));
+  width: min(1080px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 1.5rem 0 3rem;
 }
@@ -221,7 +221,7 @@ textarea:focus-visible {
 .shell:has(.about-page),
 .shell:has(.dash),
 .shell:has(.tools-page) {
-  width: min(1080px, calc(100% - 2rem));
+  width: min(1120px, calc(100% - 2rem));
 }
 
 /* 有大纲的文章：仅桌面加宽，避免手机端被 1320 布局挤压 */
@@ -247,8 +247,8 @@ textarea:focus-visible {
 .header-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 1rem;
   flex: 1 1 auto;
   min-width: 0;
   flex-wrap: nowrap;
@@ -279,13 +279,11 @@ textarea:focus-visible {
 .nav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.7rem;
+  gap: 0.85rem;
   align-items: center;
-  flex-shrink: 1;
+  flex: 0 0 auto;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: visible;
 }
 
 .nav::-webkit-scrollbar {
@@ -300,6 +298,7 @@ textarea:focus-visible {
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
+  padding: 0.15rem 0;
 }
 
 html[lang='en'] .brand {
@@ -308,7 +307,7 @@ html[lang='en'] .brand {
 }
 
 html[lang='en'] .nav {
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 html[lang='en'] .nav a {
@@ -339,8 +338,11 @@ html[lang='en'] .theme-toggle {
 .header-tools {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-left: auto;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .mobile-only-tool {
@@ -738,6 +740,37 @@ a.notify-bell.router-link-active {
   border-color: var(--accent);
   color: var(--accent);
   transform: translateY(-1px);
+}
+
+@media (max-width: 1100px) and (min-width: 761px) {
+  .site-header {
+    gap: 0.55rem;
+  }
+
+  .nav {
+    gap: 0.65rem;
+  }
+
+  .header-right {
+    gap: 0.75rem;
+  }
+
+  .header-tools {
+    gap: 0.3rem;
+  }
+
+  .theme-text {
+    display: none;
+  }
+
+  .theme-toggle {
+    padding: 0.28rem;
+  }
+
+  .pwa-install {
+    padding: 0.38rem 0.55rem;
+    font-size: 0.78rem;
+  }
 }
 
 .pwa-ios-overlay {
