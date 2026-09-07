@@ -1,4 +1,4 @@
-import { requireUser } from '../../../_lib/auth.js'
+import { requirePermission } from '../../../_lib/auth.js'
 import {
   AI_MAX_MESSAGE_CHARS,
   assertDailyLimit,
@@ -11,7 +11,7 @@ import { empty, json, readJson } from '../../../_lib/response.js'
 export async function onRequest(context) {
   const { request, env, params } = context
   if (request.method === 'OPTIONS') return empty(204)
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'ai.chat')
   if (auth.error) return auth.error
   const id = decodeURIComponent(String(params?.id || '')).trim()
   const conversation = await env.DB.prepare(

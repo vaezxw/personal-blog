@@ -1,4 +1,4 @@
-import { requireUser } from '../_lib/auth.js'
+import { requirePermission } from '../_lib/auth.js'
 import {
   AI_MAX_CONTEXT_CHARS,
   AI_MAX_MESSAGE_CHARS,
@@ -115,7 +115,7 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return empty(204)
   if (request.method !== 'POST') return json(405, { error: 'Method not allowed' })
 
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'ai.chat')
   if (auth.error) return auth.error
   const { user } = auth
 

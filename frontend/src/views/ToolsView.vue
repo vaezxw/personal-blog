@@ -6,7 +6,20 @@
       <p class="lede muted">{{ t('tools.lede') }}</p>
     </header>
 
-    <div class="tools-layout panel geek-panel">
+    <div v-if="!user" class="panel tools-gate">
+      <h2>{{ t('perm.toolsLoginTitle') }}</h2>
+      <p class="muted">{{ t('perm.toolsLoginHint') }}</p>
+      <RouterLink class="btn" :to="{ name: 'me', query: { next: '/tools' } }">
+        {{ t('admin.login') }}
+      </RouterLink>
+    </div>
+
+    <div v-else-if="!allowed" class="panel tools-gate">
+      <h2>{{ t('perm.deniedTitle') }}</h2>
+      <p class="muted">{{ t('perm.toolsDenied') }}</p>
+    </div>
+
+    <div v-else class="tools-layout panel geek-panel">
       <aside class="tools-nav" role="tablist" :aria-label="t('tools.title')">
         <button
           v-for="item in toolItems"
@@ -33,7 +46,7 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import JsonTool from '../components/tools/JsonTool.vue'
 import Base64ImageTool from '../components/tools/Base64ImageTool.vue'
 import CryptoTool from '../components/tools/CryptoTool.vue'
@@ -44,12 +57,27 @@ import Base64TextTool from '../components/tools/Base64TextTool.vue'
 import UuidTool from '../components/tools/UuidTool.vue'
 import RegexTool from '../components/tools/RegexTool.vue'
 import TranslateTool from '../components/tools/TranslateTool.vue'
+import { getStoredUser } from '../api.js'
 import { useLocale } from '../composables/useLocale.js'
+import { hasPermission } from '../utils/permissions.js'
 
 const DocConvertTool = defineAsyncComponent(() => import('../components/tools/DocConvertTool.vue'))
 
 const { t } = useLocale()
 const activeTool = ref('json')
+const user = ref(getStoredUser())
+const allowed = computed(() => hasPermission(user.value, 'tools.use'))
+
+function syncUser() {
+  user.value = getStoredUser()
+}
+
+onMounted(() => {
+  window.addEventListener('mohhen-auth-change', syncUser)
+})
+onUnmounted(() => {
+  window.removeEventListener('mohhen-auth-change', syncUser)
+})
 
 const toolItems = computed(() => [
   {
@@ -129,6 +157,17 @@ const activeMeta = computed(
 .tools-head {
   margin-bottom: 1rem;
   padding: 1.25rem 1.35rem;
+}
+
+.tools-gate {
+  padding: 1.5rem 1.35rem;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.tools-gate h2 {
+  margin: 0;
 }
 
 .tools-head h1 {

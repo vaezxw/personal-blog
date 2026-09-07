@@ -1,5 +1,21 @@
 <template>
-  <section class="dash" v-if="data">
+  <section class="dash" v-if="denied">
+    <div class="panel dash-gate">
+      <h2>{{ denied === 'login' ? t('perm.dashLoginTitle') : t('perm.deniedTitle') }}</h2>
+      <p class="muted">
+        {{ denied === 'login' ? t('perm.dashLoginHint') : t('perm.dashDenied') }}
+      </p>
+      <RouterLink
+        v-if="denied === 'login'"
+        class="btn"
+        :to="{ name: 'me', query: { next: `/u/${username}/dashboard` } }"
+      >
+        {{ t('admin.login') }}
+      </RouterLink>
+    </div>
+  </section>
+
+  <section class="dash" v-else-if="data">
     <header class="dash-hero panel">
       <div class="dash-identity">
         <div class="dash-avatar" aria-hidden="true">
@@ -229,9 +245,10 @@ import {
   Legend,
 } from 'chart.js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { fetchUserDashboard } from '../api'
+import { fetchUserDashboard, getStoredUser } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 import { useTheme } from '../composables/useTheme.js'
+import { hasPermission } from '../utils/permissions.js'
 
 Chart.register(
   LineController,
@@ -258,6 +275,7 @@ const { isDark } = useTheme()
 const loading = ref(true)
 const error = ref('')
 const data = ref(null)
+const denied = ref('')
 const trendRef = ref(null)
 const mixRef = ref(null)
 const postsRef = ref(null)
@@ -612,6 +630,20 @@ function renderCharts() {
 async function load() {
   loading.value = true
   error.value = ''
+  denied.value = ''
+  const user = getStoredUser()
+  if (!user) {
+    denied.value = 'login'
+    data.value = null
+    loading.value = false
+    return
+  }
+  if (!hasPermission(user, 'dashboard.view')) {
+    denied.value = 'forbidden'
+    data.value = null
+    loading.value = false
+    return
+  }
   try {
     data.value = await fetchUserDashboard(props.username)
     await nextTick()
@@ -619,7 +651,10 @@ async function load() {
   } catch (err) {
     data.value = null
     destroyCharts()
-    error.value = err.message || t('dash.missing')
+    const status = err?.status || err?.statusCode
+    if (status === 401) denied.value = 'login'
+    else if (status === 403) denied.value = 'forbidden'
+    else error.value = err.message || t('dash.missing')
   } finally {
     loading.value = false
   }
@@ -643,6 +678,17 @@ onBeforeUnmount(destroyCharts)
 <style scoped>
 .dash {
   animation: rise 0.55s ease both;
+}
+
+.dash-gate {
+  padding: 1.5rem 1.35rem;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.dash-gate h2 {
+  margin: 0;
 }
 
 .dash-hero {

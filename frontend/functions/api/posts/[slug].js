@@ -1,4 +1,10 @@
-import { canManagePost, mapPost, optionalUser, requireUser, simpleMarkdown } from '../_lib/auth.js'
+import {
+  canManagePost,
+  mapPost,
+  optionalUser,
+  requirePermission,
+  simpleMarkdown,
+} from '../_lib/auth.js'
 import { deletePostAttachments, replacePostAttachments } from '../_lib/attachments.js'
 import { createNotification } from '../_lib/notifications.js'
 import { notifyMentions } from '../_lib/mentions.js'
@@ -36,7 +42,7 @@ export async function onRequest(context) {
     const includeDrafts = url.searchParams.get('preview') === '1'
     let user = null
     if (includeDrafts) {
-      const auth = await requireUser(context)
+      const auth = await requirePermission(context, 'posts.publish')
       if (auth.error) return auth.error
       user = auth.user
     } else {
@@ -70,7 +76,7 @@ export async function onRequest(context) {
     })
   }
 
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'posts.publish')
   if (auth.error) return auth.error
   const { user } = auth
 

@@ -71,11 +71,20 @@ export async function onRequest(context) {
         .run()
     }
 
-    const updated = await env.DB.prepare(
-      `SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?`,
-    )
-      .bind(user.id)
-      .first()
+    let updated
+    try {
+      updated = await env.DB.prepare(
+        `SELECT id, email, username, role, created_at, avatar_url, permissions FROM users WHERE id = ?`,
+      )
+        .bind(user.id)
+        .first()
+    } catch {
+      updated = await env.DB.prepare(
+        `SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?`,
+      )
+        .bind(user.id)
+        .first()
+    }
 
     // 用户名变更后刷新会话 Cookie，避免 JWT 里残留旧 username
     const session = await createSession(env, updated, request)

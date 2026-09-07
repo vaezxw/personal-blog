@@ -17,12 +17,20 @@ export async function onRequest(context) {
     return jsonWithSetCookies(401, { error: 'Invalid refresh token' }, buildClearAuthCookieHeaders(secure))
   }
 
-  const payload = await verifyJwt(session.accessToken, getJwtSecret(env))
-  const userRow = await env.DB.prepare(
-    'SELECT id, email, username, role, created_at FROM users WHERE id = ?',
-  )
-    .bind(payload.sub)
-    .first()
+  let userRow
+  try {
+    userRow = await env.DB.prepare(
+      'SELECT id, email, username, role, created_at, avatar_url, permissions FROM users WHERE id = ?',
+    )
+      .bind(payload.sub)
+      .first()
+  } catch {
+    userRow = await env.DB.prepare(
+      'SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?',
+    )
+      .bind(payload.sub)
+      .first()
+  }
 
   return jsonWithSetCookies(200, { user: publicUser(userRow) }, session.cookieHeaders)
 }

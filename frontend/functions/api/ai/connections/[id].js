@@ -1,4 +1,4 @@
-import { requireUser } from '../../_lib/auth.js'
+import { requirePermission } from '../../_lib/auth.js'
 import {
   encryptApiKey,
   getConnection,
@@ -25,7 +25,7 @@ export async function onRequest(context) {
   const { request, env, params } = context
   if (request.method === 'OPTIONS') return empty(204)
 
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'ai.chat')
   if (auth.error) return auth.error
   const { user } = auth
   const id = getId(params)

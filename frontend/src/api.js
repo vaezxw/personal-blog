@@ -299,6 +299,17 @@ export function me() {
   return request('/api/auth/me')
 }
 
+export function fetchAdminUsers() {
+  return request('/api/admin/users')
+}
+
+export function updateAdminUser(id, body) {
+  return request(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body || {}),
+  })
+}
+
 export function fetchComments(slug) {
   return request(`/api/posts/${encodeURIComponent(slug)}/comments`)
 }

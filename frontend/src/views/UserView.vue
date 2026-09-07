@@ -69,10 +69,12 @@
             </button>
           </div>
           <div class="user-secondary-links">
-            <RouterLink :to="{ name: 'user-dashboard', params: { username: profile.username } }">
-              {{ t('dash.open') }}
-            </RouterLink>
-            <span aria-hidden="true">·</span>
+            <template v-if="canViewDashboard">
+              <RouterLink :to="{ name: 'user-dashboard', params: { username: profile.username } }">
+                {{ t('dash.open') }}
+              </RouterLink>
+              <span aria-hidden="true">·</span>
+            </template>
             <RouterLink :to="{ name: 'user-library', params: { username: profile.username } }">
               {{ t('library.open') }}
             </RouterLink>
@@ -183,6 +185,7 @@ import {
   toggleFollow,
 } from '../api'
 import { useLocale } from '../composables/useLocale.js'
+import { hasPermission } from '../utils/permissions.js'
 
 const props = defineProps({
   username: { type: String, required: true },
@@ -204,6 +207,7 @@ const followBusy = ref(false)
 const followHint = ref(false)
 const rowBusy = ref('')
 const currentUser = ref(getStoredUser())
+const canViewDashboard = computed(() => hasPermission(currentUser.value, 'dashboard.view'))
 
 const avatarLetter = computed(() => (profile.value?.username || '?').slice(0, 1).toUpperCase())
 const roleLabel = computed(() =>

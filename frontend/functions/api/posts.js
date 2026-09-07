@@ -1,4 +1,4 @@
-import { mapPost, optionalUser, requireUser } from './_lib/auth.js'
+import { mapPost, optionalUser, requirePermission } from './_lib/auth.js'
 import { replacePostAttachments } from './_lib/attachments.js'
 import { createNotification } from './_lib/notifications.js'
 import { notifyMentions } from './_lib/mentions.js'
@@ -86,7 +86,7 @@ export async function onRequest(context) {
       return json(200, posts)
     }
 
-    const auth = await requireUser(context)
+    const auth = await requirePermission(context, 'posts.publish')
     if (auth.error) return auth.error
     const { user } = auth
 
@@ -115,7 +115,7 @@ export async function onRequest(context) {
   }
 
   if (request.method === 'POST') {
-    const auth = await requireUser(context)
+    const auth = await requirePermission(context, 'posts.publish')
     if (auth.error) return auth.error
     const { user } = auth
 

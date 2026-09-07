@@ -1,4 +1,4 @@
-import { optionalUser } from '../../_lib/auth.js'
+import { requirePermission } from '../../_lib/auth.js'
 import { getFollowCounts, mapPublicUser } from '../../_lib/follows.js'
 import { getUserStats } from '../../_lib/stats.js'
 import { empty, json } from '../../_lib/response.js'
@@ -91,7 +91,9 @@ export async function onRequest(context) {
     .first()
   if (!row) return json(404, { error: 'User not found' })
 
-  const viewer = await optionalUser(context)
+  const auth = await requirePermission(context, 'dashboard.view')
+  if (auth.error) return auth.error
+  const viewer = auth.user
   const followCounts = await getFollowCounts(env.DB, row.id)
   const stats = await getUserStats(env.DB, row.id)
 

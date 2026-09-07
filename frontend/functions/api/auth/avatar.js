@@ -74,11 +74,20 @@ export async function onRequest(context) {
       .bind(avatarUrl, auth.user.id)
       .run()
 
-    const updated = await env.DB.prepare(
-      `SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?`,
-    )
-      .bind(auth.user.id)
-      .first()
+    let updated
+    try {
+      updated = await env.DB.prepare(
+        `SELECT id, email, username, role, created_at, avatar_url, permissions FROM users WHERE id = ?`,
+      )
+        .bind(auth.user.id)
+        .first()
+    } catch {
+      updated = await env.DB.prepare(
+        `SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?`,
+      )
+        .bind(auth.user.id)
+        .first()
+    }
 
     return json(200, { user: publicUser(updated), url: avatarUrl })
   } catch (err) {

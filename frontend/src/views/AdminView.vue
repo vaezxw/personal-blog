@@ -34,6 +34,7 @@
 
       <nav class="studio-tabs" aria-label="studio">
         <button
+          v-if="canPublish"
           type="button"
           :class="{ active: studioTab === 'compose' }"
           @click="studioTab = 'compose'"
@@ -41,6 +42,7 @@
           {{ t('admin.tabCompose') }}
         </button>
         <button
+          v-if="canPublish"
           type="button"
           :class="{ active: studioTab === 'library' }"
           @click="openLibrary"
@@ -48,6 +50,7 @@
           {{ t('admin.tabLibrary') }}
         </button>
         <button
+          v-if="canPublish"
           type="button"
           :class="{ active: studioTab === 'stats' }"
           @click="openStats"
@@ -61,9 +64,26 @@
         >
           {{ t('admin.tabSettings') }}
         </button>
+        <button
+          v-if="isAdminUser"
+          type="button"
+          :class="{ active: studioTab === 'users' }"
+          @click="openUsers"
+        >
+          {{ t('admin.tabUsers') }}
+        </button>
       </nav>
 
+      <div v-if="!canPublish && !isAdminUser && studioTab !== 'settings'" class="panel studio-gate">
+        <h2>{{ t('perm.deniedTitle') }}</h2>
+        <p class="muted">{{ t('perm.postsDenied') }}</p>
+        <button type="button" class="btn ghost" @click="studioTab = 'settings'">
+          {{ t('admin.tabSettings') }}
+        </button>
+      </div>
+
       <form
+        v-if="canPublish"
         v-show="studioTab === 'compose'"
         class="panel composer"
         @submit.prevent="submitPost"
@@ -298,7 +318,7 @@
         <p v-if="formOk" class="ok">{{ formOk }}</p>
       </form>
 
-      <div v-show="studioTab === 'library'" class="panel">
+      <div v-if="canPublish" v-show="studioTab === 'library'" class="panel">
         <div class="row between">
           <h2>{{ t('admin.myPosts') }}</h2>
           <button class="btn ghost" type="button" :disabled="loading" @click="loadPosts">
@@ -337,7 +357,7 @@
         </ul>
       </div>
 
-      <div v-show="studioTab === 'stats'" class="panel stats-panel">
+      <div v-if="canPublish" v-show="studioTab === 'stats'" class="panel stats-panel">
         <div class="row between">
           <h2>{{ t('admin.statsTitle') }}</h2>
           <button class="btn ghost" type="button" :disabled="statsLoading" @click="loadStats">
@@ -453,6 +473,92 @@
           <p v-if="passwordError" class="error">{{ passwordError }}</p>
         </form>
       </div>
+
+      <div v-show="studioTab === 'users' && isAdminUser" class="panel users-panel">
+        <div class="users-head">
+          <div>
+            <h2>{{ t('admin.tabUsers') }}</h2>
+            <p class="muted">{{ t('admin.usersLede') }}</p>
+          </div>
+          <button type="button" class="btn ghost" :disabled="usersLoading" @click="loadUsers">
+            {{ t('admin.refresh') }}
+          </button>
+        </div>
+        <p v-if="usersLoading" class="muted">{{ t('home.loading') }}</p>
+        <p v-else-if="usersError" class="error">{{ usersError }}</p>
+        <div v-else class="users-table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>{{ t('admin.username') }}</th>
+                <th>{{ t('admin.usersRole') }}</th>
+                <th>{{ t('perm.postsPublish') }}</th>
+                <th>{{ t('perm.aiChat') }}</th>
+                <th>{{ t('perm.toolsUse') }}</th>
+                <th>{{ t('perm.dashboardView') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in adminUsers" :key="row.id">
+                <td>
+                  <strong>@{{ row.username }}</strong>
+                  <span v-if="row.email" class="muted users-email">{{ row.email }}</span>
+                </td>
+                <td>
+                  <select
+                    v-model="row.draftRole"
+                    :disabled="row.id === user.id || row.saving"
+                  >
+                    <option value="author">{{ t('admin.roleAuthor') }}</option>
+                    <option value="admin">{{ t('admin.roleAdmin') }}</option>
+                  </select>
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    v-model="row.draftPerms['posts.publish']"
+                    :disabled="row.draftRole === 'admin' || row.saving"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    v-model="row.draftPerms['ai.chat']"
+                    :disabled="row.draftRole === 'admin' || row.saving"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    v-model="row.draftPerms['tools.use']"
+                    :disabled="row.draftRole === 'admin' || row.saving"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    v-model="row.draftPerms['dashboard.view']"
+                    :disabled="row.draftRole === 'admin' || row.saving"
+                  />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn ghost"
+                    :disabled="row.saving || !userRowDirty(row)"
+                    @click="saveUserRow(row)"
+                  >
+                    {{ row.saving ? t('admin.saving') : t('admin.usersSave') }}
+                  </button>
+                  <p v-if="row.ok" class="ok users-row-msg">{{ row.ok }}</p>
+                  <p v-if="row.error" class="error users-row-msg">{{ row.error }}</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </template>
   </section>
 </template>
@@ -463,6 +569,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   createPost,
   deletePost,
+  fetchAdminUsers,
   fetchAllPosts,
   fetchMyStats,
   fetchPostCached,
@@ -472,6 +579,7 @@ import {
   peekPostCache,
   setStoredUser,
   takeRepostSourceStash,
+  updateAdminUser,
   updatePost,
   warmPostCache,
   updateProfile,
@@ -484,13 +592,16 @@ import { compressImageFile } from '../utils/avatar.js'
 import { isHtmlContent, markdownToHtml, renderPostContent } from '../utils/contentFormat.js'
 import { isMarkdownFile, parseMarkdownDocument } from '../utils/markdownUpload.js'
 import { renderMermaidBlocks } from '../utils/mermaidBlocks.js'
+import { hasPermission, isAdmin, normalizePermissions, PERMISSION_KEYS } from '../utils/permissions.js'
 
 const { t } = useLocale()
 const route = useRoute()
 const router = useRouter()
 
 const user = ref(getStoredUser())
-const studioTab = ref('compose')
+const isAdminUser = computed(() => isAdmin(user.value))
+const canPublish = computed(() => hasPermission(user.value, 'posts.publish'))
+const studioTab = ref(canPublish.value ? 'compose' : 'settings')
 const posts = ref([])
 const loading = ref(false)
 const listError = ref('')
@@ -498,6 +609,9 @@ const saving = ref(false)
 const formError = ref('')
 const formOk = ref('')
 const editingId = ref('')
+const adminUsers = ref([])
+const usersLoading = ref(false)
+const usersError = ref('')
 const contentMode = ref('rich')
 /** Markdown 工作区：edit | split | preview */
 const mdPane = ref('edit')
@@ -607,6 +721,70 @@ function openLibrary() {
 function openStats() {
   studioTab.value = 'stats'
   loadStats()
+}
+
+function mapAdminUserRow(u) {
+  const perms = normalizePermissions(u.permissions)
+  return {
+    ...u,
+    draftRole: u.role,
+    draftPerms: { ...perms },
+    baselineRole: u.role,
+    baselinePerms: { ...perms },
+    saving: false,
+    ok: '',
+    error: '',
+  }
+}
+
+function userRowDirty(row) {
+  if (row.draftRole !== row.baselineRole) return true
+  return PERMISSION_KEYS.some((key) => Boolean(row.draftPerms[key]) !== Boolean(row.baselinePerms[key]))
+}
+
+async function loadUsers() {
+  if (!isAdminUser.value) return
+  usersLoading.value = true
+  usersError.value = ''
+  try {
+    const data = await fetchAdminUsers()
+    adminUsers.value = (data.users || []).map(mapAdminUserRow)
+  } catch (err) {
+    usersError.value = err.message || t('admin.loadFailed')
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+function openUsers() {
+  studioTab.value = 'users'
+  loadUsers()
+}
+
+async function saveUserRow(row) {
+  row.saving = true
+  row.ok = ''
+  row.error = ''
+  try {
+    const body = {
+      role: row.draftRole,
+      permissions: row.draftRole === 'admin' ? {} : { ...row.draftPerms },
+    }
+    const data = await updateAdminUser(row.id, body)
+    const next = mapAdminUserRow(data.user)
+    const idx = adminUsers.value.findIndex((u) => u.id === row.id)
+    if (idx >= 0) {
+      next.ok = t('admin.usersSaved')
+      adminUsers.value[idx] = next
+    }
+    if (row.id === user.value?.id && data.user) {
+      applyUser({ ...user.value, ...data.user })
+    }
+  } catch (err) {
+    row.error = err.message || t('admin.saveFailed')
+  } finally {
+    row.saving = false
+  }
 }
 
 function readFileAsText(file) {
@@ -1068,6 +1246,15 @@ async function restoreSession() {
   try {
     const data = await meCached()
     applyUser(data.user)
+    if (!canPublish.value && !isAdminUser.value) {
+      studioTab.value = 'settings'
+      return
+    }
+    if (!canPublish.value && isAdminUser.value) {
+      studioTab.value = 'users'
+      await loadUsers()
+      return
+    }
     if (pendingRepost) {
       // Repost entry: prioritize compose; defer library/stats
       await applyRepostFromRoute()
@@ -1236,6 +1423,65 @@ onMounted(restoreSession)
   border-color: var(--accent);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.users-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.users-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.users-head h2 {
+  margin: 0 0 0.35rem;
+}
+
+.users-head p {
+  margin: 0;
+}
+
+.users-table-wrap {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.users-table th,
+.users-table td {
+  padding: 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.users-table th {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.users-email {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.users-row-msg {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+}
+
+.users-table select {
+  max-width: 7.5rem;
 }
 
 .composer-head {

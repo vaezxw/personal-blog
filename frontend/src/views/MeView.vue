@@ -173,7 +173,7 @@
       </div>
 
       <nav class="me-hub" :aria-label="t('nav.me')">
-        <RouterLink class="me-hub-card" to="/chat">
+        <RouterLink v-if="canChat" class="me-hub-card" to="/chat">
           <strong>{{ t('nav.chat') }}</strong>
           <span class="muted">{{ t('ai.lede') }}</span>
         </RouterLink>
@@ -189,6 +189,7 @@
           <span class="muted">{{ t('user.hubLibrary') }}</span>
         </RouterLink>
         <RouterLink
+          v-if="canDashboard"
           class="me-hub-card"
           :to="{ name: 'user-dashboard', params: { username: user.username } }"
         >
@@ -201,7 +202,7 @@
         </RouterLink>
       </nav>
 
-      <AiConnectionSettings />
+      <AiConnectionSettings v-if="canChat" />
     </template>
   </section>
 </template>
@@ -212,12 +213,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { getStoredUser, login, logout, meCached, register, setStoredUser } from '../api'
 import { useLocale } from '../composables/useLocale.js'
 import AiConnectionSettings from '../components/AiConnectionSettings.vue'
+import { hasPermission } from '../utils/permissions.js'
 
 const { t } = useLocale()
 const route = useRoute()
 const router = useRouter()
 
 const user = ref(getStoredUser())
+const canChat = computed(() => hasPermission(user.value, 'ai.chat'))
+const canDashboard = computed(() => hasPermission(user.value, 'dashboard.view'))
 const mode = ref(route.query.tab === 'register' ? 'register' : 'login')
 const authBusy = ref(false)
 const logoutBusy = ref(false)

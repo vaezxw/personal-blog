@@ -1,5 +1,5 @@
 import { newId } from './_lib/crypto.js'
-import { requireUser } from './_lib/auth.js'
+import { requirePermission } from './_lib/auth.js'
 import { empty, json } from './_lib/response.js'
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
@@ -112,7 +112,7 @@ export async function onRequest(context) {
     })
   }
 
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'posts.publish')
   if (auth.error) return auth.error
 
   try {

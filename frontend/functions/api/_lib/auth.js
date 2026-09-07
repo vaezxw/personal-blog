@@ -3,6 +3,16 @@ import { getCookie, ACCESS_COOKIE } from './cookies.js'
 import { json } from './response.js'
 import { isDeliverableEmail } from './email.js'
 
+export const PERMISSION_KEYS = [
+  'posts.publish',
+  'ai.chat',
+  'tools.use',
+  'dashboard.view',
+]
+
+const USER_COLUMNS =
+  'id, email, username, role, created_at, avatar_url, permissions'
+
 export function getJwtSecret(env) {
   return env?.JWT_SECRET || 'dev-jwt-secret-change-me'
 }
@@ -11,6 +21,65 @@ export function getBearerToken(request) {
   const header = request.headers.get('Authorization') || ''
   if (header.startsWith('Bearer ')) return header.slice(7)
   return getCookie(request, ACCESS_COOKIE)
+}
+
+export function isAdmin(user) {
+  return user?.role === 'admin'
+}
+
+export function parsePermissions(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ...raw }
+  try {
+    const parsed = JSON.parse(String(raw))
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { ...parsed }
+    }
+  } catch {
+    /* ignore */
+  }
+  return {}
+}
+
+/** Expand to a full boolean map for admin UI / publicUser. Missing keys default true. */
+export function normalizePermissions(raw) {
+  const parsed = parsePermissions(raw)
+  const out = {}
+  for (const key of PERMISSION_KEYS) {
+    out[key] = Object.prototype.hasOwnProperty.call(parsed, key)
+      ? Boolean(parsed[key])
+      : true
+  }
+  return out
+}
+
+/**
+ * Empty / missing key = allowed (compat). Explicit false = denied.
+ * Admin always allowed.
+ */
+export function hasPermission(user, key) {
+  if (!user) return false
+  if (isAdmin(user)) return true
+  const perms =
+    user.permissions && typeof user.permissions === 'object' && !Array.isArray(user.permissions)
+      ? user.permissions
+      : parsePermissions(user.permissions)
+  if (Object.prototype.hasOwnProperty.call(perms, key)) {
+    return Boolean(perms[key])
+  }
+  return true
+}
+
+/** Persist only known keys as booleans. */
+export function serializePermissions(input) {
+  const src = parsePermissions(input)
+  const out = {}
+  for (const key of PERMISSION_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(src, key)) {
+      out[key] = Boolean(src[key])
+    }
+  }
+  return JSON.stringify(out)
 }
 
 export function publicUser(row) {
@@ -23,6 +92,7 @@ export function publicUser(row) {
     role: row.role,
     createdAt: row.created_at,
     avatarUrl: row.avatar_url || null,
+    permissions: normalizePermissions(row.permissions),
   }
 }
 
@@ -53,18 +123,28 @@ export function mapPost(row) {
   return post
 }
 
+async function loadUserById(env, id) {
+  try {
+    return await env.DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)
+      .bind(id)
+      .first()
+  } catch {
+    // Pre-migration DBs without permissions column
+    return await env.DB.prepare(
+      'SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?',
+    )
+      .bind(id)
+      .first()
+  }
+}
+
 export async function optionalUser(context) {
   try {
     const { request, env } = context
     const token = getBearerToken(request)
     const payload = await verifyJwt(token, getJwtSecret(env))
     if (!payload?.sub) return null
-    const user = await env.DB.prepare(
-      'SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?',
-    )
-      .bind(payload.sub)
-      .first()
-    return user || null
+    return (await loadUserById(env, payload.sub)) || null
   } catch {
     return null
   }
@@ -77,15 +157,29 @@ export async function requireUser(context) {
   if (!payload?.sub) {
     return { error: json(401, { error: 'Unauthorized' }) }
   }
-  const user = await env.DB.prepare(
-    'SELECT id, email, username, role, created_at, avatar_url FROM users WHERE id = ?',
-  )
-    .bind(payload.sub)
-    .first()
+  const user = await loadUserById(env, payload.sub)
   if (!user) {
     return { error: json(401, { error: 'Unauthorized' }) }
   }
   return { user }
+}
+
+export async function requireAdmin(context) {
+  const auth = await requireUser(context)
+  if (auth.error) return auth
+  if (!isAdmin(auth.user)) {
+    return { error: json(403, { error: 'Forbidden' }) }
+  }
+  return auth
+}
+
+export async function requirePermission(context, key) {
+  const auth = await requireUser(context)
+  if (auth.error) return auth
+  if (!hasPermission(auth.user, key)) {
+    return { error: json(403, { error: 'Forbidden' }) }
+  }
+  return auth
 }
 
 export function canManagePost(user, post) {
@@ -95,4 +189,3 @@ export function canManagePost(user, post) {
 }
 
 export { simpleMarkdown, renderMarkdown } from './markdown.js'
-

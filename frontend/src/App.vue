@@ -9,9 +9,9 @@
         <nav class="nav">
           <RouterLink to="/">{{ t('nav.posts') }}</RouterLink>
           <RouterLink to="/about">{{ t('nav.about') }}</RouterLink>
-          <RouterLink to="/tools">{{ t('nav.tools') }}</RouterLink>
-          <RouterLink to="/chat">{{ t('nav.chat') }}</RouterLink>
-          <RouterLink to="/admin">{{ t('nav.admin') }}</RouterLink>
+          <RouterLink v-if="canTools" to="/tools">{{ t('nav.tools') }}</RouterLink>
+          <RouterLink v-if="canChat" to="/chat">{{ t('nav.chat') }}</RouterLink>
+          <RouterLink v-if="canStudio" to="/admin">{{ t('nav.admin') }}</RouterLink>
         </nav>
         <div class="header-tools">
           <SiteSearch />
@@ -110,13 +110,14 @@
                 {{ t('nav.library') }}
               </RouterLink>
               <RouterLink
+                v-if="canDashboard"
                 class="me-item"
                 :to="{ name: 'user-dashboard', params: { username: currentUser.username } }"
                 @click="meOpen = false"
               >
                 {{ t('dash.open') }}
               </RouterLink>
-              <RouterLink class="me-item" to="/admin" @click="meOpen = false">
+              <RouterLink v-if="canStudio" class="me-item" to="/admin" @click="meOpen = false">
                 {{ t('nav.admin') }}
               </RouterLink>
               <button type="button" class="me-item me-item-logout" @click="onLogout">
@@ -216,6 +217,7 @@ import {
 } from './api'
 import { useLocale } from './composables/useLocale.js'
 import { useTheme } from './composables/useTheme.js'
+import { hasPermission } from './utils/permissions.js'
 
 const { t, isEn, toggleLocale, formatDate } = useLocale()
 const { isDark, toggleTheme } = useTheme()
@@ -223,6 +225,14 @@ const route = useRoute()
 const themeLabel = computed(() => (isDark.value ? t('theme.toDay') : t('theme.toNight')))
 
 const currentUser = ref(getStoredUser())
+const canTools = computed(
+  () => !!currentUser.value && hasPermission(currentUser.value, 'tools.use'),
+)
+const canChat = computed(() => !!currentUser.value && hasPermission(currentUser.value, 'ai.chat'))
+const canDashboard = computed(
+  () => !!currentUser.value && hasPermission(currentUser.value, 'dashboard.view'),
+)
+const canStudio = computed(() => !!currentUser.value)
 const unreadCount = ref(0)
 const dmUnreadCount = ref(0)
 const notifications = ref([])

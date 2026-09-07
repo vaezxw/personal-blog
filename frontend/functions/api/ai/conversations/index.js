@@ -1,4 +1,4 @@
-import { requireUser } from '../../_lib/auth.js'
+import { requirePermission } from '../../_lib/auth.js'
 import { getConnection, getDefaultConnection, mapConversation } from '../../_lib/ai.js'
 import { newId } from '../../_lib/crypto.js'
 import { empty, json, readJson } from '../../_lib/response.js'
@@ -7,7 +7,7 @@ export async function onRequest(context) {
   const { request, env } = context
   if (request.method === 'OPTIONS') return empty(204)
 
-  const auth = await requireUser(context)
+  const auth = await requirePermission(context, 'ai.chat')
   if (auth.error) return auth.error
   const { user } = auth
 

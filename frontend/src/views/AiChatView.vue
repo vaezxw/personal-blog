@@ -18,6 +18,12 @@
       </RouterLink>
     </div>
 
+    <div v-else-if="!canChat" class="panel ai-login-card">
+      <p class="eyebrow">{{ t('ai.eyebrow') }}</p>
+      <h2>{{ t('perm.deniedTitle') }}</h2>
+      <p class="muted">{{ t('perm.aiDenied') }}</p>
+    </div>
+
     <div v-else class="ai-shell panel geek-panel" :class="{ 'sidebar-open': sidebarOpen }">
       <aside class="ai-sidebar" :aria-label="t('ai.conversations')">
         <div class="ai-sidebar-head">
@@ -178,6 +184,7 @@ import {
 } from '../api.js'
 import { useLocale } from '../composables/useLocale.js'
 import { renderAiMarkdown } from '../utils/renderAiMarkdown.js'
+import { hasPermission } from '../utils/permissions.js'
 import {
   CURSOR_CONNECTION_ID,
   cursorConnectionFromConfig,
@@ -189,6 +196,7 @@ const route = useRoute()
 const router = useRouter()
 
 const me = ref(null)
+const canChat = computed(() => hasPermission(me.value, 'ai.chat'))
 const connections = ref([])
 const conversations = ref([])
 const messages = ref([])

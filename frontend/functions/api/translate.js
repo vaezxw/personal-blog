@@ -1,3 +1,4 @@
+import { requirePermission } from './_lib/auth.js'
 import { empty, json, readJson } from './_lib/response.js'
 
 const MAX_CHARS = 4500
@@ -197,6 +198,9 @@ export async function onRequest(context) {
 
   if (request.method === 'OPTIONS') return empty(204)
   if (request.method !== 'POST') return json(405, { error: 'Method not allowed' })
+
+  const auth = await requirePermission(context, 'tools.use')
+  if (auth.error) return auth.error
 
   try {
     const body = await readJson(request)
