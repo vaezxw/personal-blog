@@ -1,5 +1,9 @@
 <template>
   <section class="about about-page">
+    <div class="about-toolbar">
+      <p class="muted about-toolbar-hint">{{ t('share.aboutToolbarHint') }}</p>
+      <AboutShareBar />
+    </div>
     <div class="terminal-bar">
       <span class="dot red"></span>
       <span class="dot yellow"></span>
@@ -157,6 +161,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useLocale } from '../composables/useLocale.js'
+import AboutShareBar from '../components/AboutShareBar.vue'
 
 const {
   t,
@@ -236,7 +241,9 @@ function onDocumentClick(event) {
     el.closest('.inline-link') ||
     el.closest('.mini-tech') ||
     el.closest('.lang-toggle') ||
-    el.closest('.theme-toggle')
+    el.closest('.theme-toggle') ||
+    el.closest('.about-share') ||
+    el.closest('.long-mask')
   ) {
     return
   }
@@ -276,6 +283,19 @@ onUnmounted(() => {
 .about-page {
   max-width: 1080px;
   margin: 0 auto;
+}
+
+.about-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.about-toolbar-hint {
+  margin: 0;
+  font-size: 0.85rem;
 }
 
 .terminal-bar {
@@ -611,6 +631,9 @@ onUnmounted(() => {
 }
 
 @media (max-width: 640px) {
+  .about-toolbar {
+    flex-wrap: wrap;
+  }
   .filter-btn.ghost {
     margin-left: 0;
   }

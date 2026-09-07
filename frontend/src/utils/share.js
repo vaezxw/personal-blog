@@ -1,8 +1,17 @@
 /** Lightweight in-app + third-party share helpers (no SDK). */
 
-export function postShareUrl(slug) {
+export function pageShareUrl(path = '/') {
   if (typeof window === 'undefined') return ''
-  return `${window.location.origin}/post/${encodeURIComponent(slug)}`
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return `${window.location.origin}${normalized}`
+}
+
+export function postShareUrl(slug) {
+  return pageShareUrl(`/post/${encodeURIComponent(slug)}`)
+}
+
+export function aboutShareUrl() {
+  return pageShareUrl('/about')
 }
 
 export function canUseNativeShare() {
@@ -58,16 +67,37 @@ function openShareWindow(href) {
   }
 }
 
-export async function systemShare({ title, text, url }) {
+export function canShareFiles(files) {
+  if (
+    typeof navigator === 'undefined' ||
+    typeof navigator.canShare !== 'function' ||
+    !Array.isArray(files) ||
+    !files.length
+  ) {
+    return false
+  }
+  try {
+    return navigator.canShare({ files })
+  } catch {
+    return false
+  }
+}
+
+export async function systemShare({ title, text, url, files } = {}) {
   if (!canUseNativeShare()) {
     const err = new Error('unsupported')
     err.name = 'ShareUnsupportedError'
     throw err
   }
-  await navigator.share({
+  const payload = {
     title: title || '',
     text: text || title || '',
-    url,
-  })
+  }
+  if (files?.length) {
+    payload.files = files
+  } else if (url) {
+    payload.url = url
+  }
+  await navigator.share(payload)
   return true
 }
