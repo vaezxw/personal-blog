@@ -88,7 +88,14 @@ async function convert() {
       info.value = t('tools.doc.okDocx')
     }
   } catch (err) {
-    error.value = err.message || t('tools.doc.failed')
+    const msg = String(err?.message || '')
+    if (/empty document|empty pdf|render failed/i.test(msg)) {
+      error.value = t('tools.doc.failed')
+    } else if (/no text extracted/i.test(msg)) {
+      error.value = t('tools.doc.noText')
+    } else {
+      error.value = msg || t('tools.doc.failed')
+    }
   } finally {
     busy.value = false
   }
