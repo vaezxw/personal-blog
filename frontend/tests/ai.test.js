@@ -79,7 +79,9 @@ test('parses Cursor CLI streaming output and bounds relay prompts', () => {
   assert.equal(extractCliResult({ type: 'result', result: 'finished' }), 'finished')
   assert.equal(normalizeMode('agent'), 'agent')
   assert.equal(normalizeMode('unsafe'), 'ask')
-  assert.ok(cliArgs('', 'ask').includes('--trust'))
+  assert.ok(cliArgs('', 'ask', 'win32').includes('--trust'))
+  assert.equal(cliArgs('', 'ask', 'win32')[cliArgs('', 'ask', 'win32').indexOf('--sandbox') + 1], 'disabled')
+  assert.equal(cliArgs('', 'ask', 'linux')[cliArgs('', 'ask', 'linux').indexOf('--sandbox') + 1], 'enabled')
   assert.equal(
     normalizeHistory([{ role: 'user', content: 'hello' }, { role: 'system', content: 'skip' }]).length,
     1,

@@ -221,7 +221,8 @@ function usageFromCli(payload) {
   }
 }
 
-function cliArgs(model, mode) {
+function cliArgs(model, mode, platform = process.platform) {
+  const sandboxMode = platform === 'win32' ? 'disabled' : 'enabled'
   const args = [
     '-p',
     '--output-format',
@@ -229,7 +230,7 @@ function cliArgs(model, mode) {
     '--stream-partial-output',
     `--mode=${normalizeMode(mode)}`,
     '--sandbox',
-    'enabled',
+    sandboxMode,
     '--trust',
   ]
   if (model) args.push('--model', model)
@@ -251,7 +252,7 @@ function spawnCli({ cliPath, workspace, prompt, model, mode, env }) {
   if (isWindowsCommand) {
     const script = [
       '$ErrorActionPreference = "Stop"',
-      '$cursorArgs = @("-p", "--output-format", "stream-json", "--stream-partial-output", ("--mode=" + $env:CURSOR_MODE), "--sandbox", "enabled", "--trust")',
+      '$cursorArgs = @("-p", "--output-format", "stream-json", "--stream-partial-output", ("--mode=" + $env:CURSOR_MODE), "--sandbox", "disabled", "--trust")',
       'if ($env:CURSOR_MODEL) { $cursorArgs += @("--model", $env:CURSOR_MODEL) }',
       '$cursorArgs += $env:CURSOR_PROMPT',
       '& $env:CURSOR_CLI @cursorArgs',
