@@ -89,5 +89,7 @@ test('parses Cursor CLI streaming output and bounds relay prompts', () => {
   const prompt = buildAgentPrompt({ history: [{ role: 'user', content: 'hello' }], message: 'status' })
   assert.match(prompt, /Current user request:\nstatus/)
   assert.match(prompt, /same language as the latest user request/)
+  assert.match(buildAgentPrompt({ message: '你好' }), /IMPORTANT OUTPUT LANGUAGE/)
+  assert.match(buildAgentPrompt({ message: '你好' }), /Simplified Chinese/)
   assert.equal(parseArgs(['--mode', 'agent', '--env', 'NO_PROXY=localhost']).mode, 'agent')
 })

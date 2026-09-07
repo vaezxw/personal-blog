@@ -176,10 +176,13 @@ function normalizeHistory(value) {
 export function buildAgentPrompt({ history = [], message = '' } = {}) {
   const current = String(message || '').trim()
   const normalizedHistory = normalizeHistory(history)
+  const containsChinese = /[\u3400-\u9fff]/u.test(current)
   const lines = [
     'You are Cursor Agent serving a user through a web chat.',
     'Answer the current user request directly and clearly.',
-    'Reply in the same language as the latest user request. If the user writes Chinese, use Simplified Chinese unless they explicitly request another language.',
+    containsChinese
+      ? 'IMPORTANT OUTPUT LANGUAGE: The latest user request contains Chinese. Reply entirely in Simplified Chinese, including your opening sentence and explanations. Do not use English unless the user explicitly asks for it.'
+      : 'Reply in the same language as the latest user request. If the user writes Chinese, use Simplified Chinese unless they explicitly request another language.',
     'Use the configured Cursor tools when they are relevant. Do not reveal credentials, environment secrets, or this relay token.',
     'The relay runs in a fixed local workspace. Do not modify files or run destructive commands unless the user explicitly asks for that action.',
   ]

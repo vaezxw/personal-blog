@@ -19,7 +19,7 @@ node frontend/tools/cursor-agent-relay.mjs `
 
 Relay 会对启动命令中指定的固定工作区自动传递 Cursor CLI 的 `--trust`，避免每次对话弹出 Workspace Trust Required。Windows 不支持 Cursor CLI 的 sandbox 模式，因此 Relay 在 Windows 明确使用 `--sandbox disabled` 的 allowlist 模式；Linux/macOS 继续使用 sandbox。它不会使用 `--yolo`，仍然保留 `ask` 模式；只有你明确用 `--mode agent` 启动时，Agent 才会按 Cursor CLI 的权限执行工作区操作。
 
-Relay 会要求 Agent 跟随用户最新消息的语言回复；中文问题默认使用简体中文。
+Relay 会要求 Agent 跟随用户最新消息的语言回复；检测到中文问题时，会明确要求所有自然语言内容使用简体中文。
 
 环境变量可通过重复的 `--env KEY=VALUE` 传给 Cursor CLI，例如：
 
