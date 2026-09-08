@@ -714,6 +714,7 @@ export const messages = {
       plugin: '插件市场',
       visit: '访问',
       source: '源码',
+      download: '下载',
     },
     tip: {
       open: '赞赏支持',
@@ -1442,6 +1443,7 @@ export const messages = {
       plugin: 'Plugin market',
       visit: 'Visit',
       source: 'Source',
+      download: 'Download',
     },
     tip: {
       open: 'Tip jar',

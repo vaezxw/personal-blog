@@ -128,7 +128,7 @@
               {{ techById[tid]?.name || tid }}
             </button>
           </div>
-          <div v-if="project.url || project.repo || project.plugin" class="project-links">
+          <div v-if="project.url || project.repo || project.download || project.plugin" class="project-links">
             <a
               v-if="project.plugin"
               :href="project.plugin"
@@ -150,6 +150,13 @@
               rel="noopener"
               @click.stop
             >{{ t('about.source') }}</a>
+            <a
+              v-if="project.download"
+              :href="project.download"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+            >{{ t('about.download') }}</a>
           </div>
         </article>
       </div>

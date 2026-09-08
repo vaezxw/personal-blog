@@ -182,6 +182,7 @@ const projectsBase = [
     id: 'hotel-analyzer',
     period: '2026',
     repo: 'https://github.com/vaezxw/hotel-price-analyzer',
+    download: 'https://github.com/vaezxw/hotel-price-analyzer/releases',
     tech: ['python', 'playwright', 'sqlite'],
     zh: {
       name: '酒店房价采集与分析',
@@ -449,6 +450,7 @@ export function getProjects(locale = 'zh') {
       period: p.period,
       url: p.url,
       repo: p.repo,
+      download: p.download,
       plugin: p.plugin,
       tech: p.tech,
       name: text.name,
