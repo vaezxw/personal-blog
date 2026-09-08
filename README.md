@@ -1,8 +1,10 @@
 # 墨痕 · 个人博客
 
-Vue 3 前端 + Cloudflare Pages Functions API + **D1** 数据库。支持 Markdown 文章、多用户注册/登录、按作者权限管理。
+记录技术、项目与偶尔的想法。写给未来的自己，也写给路过的你。
 
-生产地址（国内一般可直连）：https://mohhen-blog.pages.dev
+线上地址（国内一般可直连）：https://mohhen-blog.pages.dev
+
+Vue 3 + Vite 前端，Cloudflare Pages Functions / D1 / R2 全栈。支持 Markdown 与富文本、多用户社交（评论、点赞、收藏、私信、通知）、创作工作室、数据仪表盘，以及站内 AI 对话与工具箱。按作者权限管理文章；首位注册用户为 `admin`。
 
 ## 功能概览
 

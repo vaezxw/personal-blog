@@ -15,13 +15,13 @@ const profileZh = {
     '参与设备生命周期、营收系统、智慧工单 App、三端合同签署等多线并行开发。',
     '擅长表单-heavy 业务、报表导出、PDF 预览签署、uni-app 跨端、浏览器兼容与 Jenkins 工程化落地。',
     '开源维护 uni-app 合同签署组件库，已发布 DCloud 插件市场（MIT 免费）。',
-    '业余维护本博客「墨痕」：Vue 3 + Cloudflare 全栈（D1 / Pages / R2），社交互动与列表缓存优化。',
+    '业余项目：本博客「墨痕」、A 股延迟盯盘台「天才交易台」、Flutter 本地阅读器「墨架」（Android / iOS）。',
   ],
   highlights: [
     { label: '多项目并行', value: '6+ 产品线' },
-    { label: '跨端交付', value: 'Web / App / H5' },
+    { label: '跨端交付', value: 'Web / App / Flutter' },
     { label: '组件沉淀', value: 'uni 签署插件 · 已上架' },
-    { label: '工程化', value: 'Jenkins · GitLab' },
+    { label: '工程化', value: 'Jenkins · Cloudflare' },
   ],
 }
 
@@ -41,23 +41,28 @@ const profileEn = {
     'Shipped in parallel across device lifecycle, revenue systems, field-work apps, and multi-end contract signing.',
     'Comfortable with form-heavy flows, report exports, PDF preview & signing, uni-app, browser quirks, and Jenkins-based delivery.',
     'Maintains an open-source uni-app contract-signing UI kit on the DCloud plugin market (MIT, free).',
-    'Side project “Mohhen”: Vue 3 + Cloudflare stack (D1 / Pages / R2), social features, and list/cache perf work.',
+    'Side projects: this blog “Mohhen”, delayed A-share desk “Genius Trading Desk”, and Flutter reader “InkShelf” (Android / iOS).',
   ],
   highlights: [
     { label: 'Parallel delivery', value: '6+ product lines' },
-    { label: 'Cross-end', value: 'Web / App / H5' },
+    { label: 'Cross-end', value: 'Web / App / Flutter' },
     { label: 'Open source', value: 'uni sign plugin · live' },
-    { label: 'Engineering', value: 'Jenkins · GitLab' },
+    { label: 'Engineering', value: 'Jenkins · Cloudflare' },
   ],
 }
 
 const techStackBase = [
   { id: 'vue3', name: 'Vue 3', category: 'core', url: 'https://vuejs.org/', color: '#42b883' },
   { id: 'vue2', name: 'Vue 2', category: 'core', url: 'https://v2.vuejs.org/', color: '#35495e' },
+  { id: 'react', name: 'React', category: 'core', url: 'https://react.dev/', color: '#61dafb' },
+  { id: 'nextjs', name: 'Next.js', category: 'core', url: 'https://nextjs.org/', color: '#111827' },
   { id: 'ts', name: 'TypeScript', category: 'core', url: 'https://www.typescriptlang.org/', color: '#3178c6' },
   { id: 'js', name: 'JavaScript', category: 'core', url: 'https://developer.mozilla.org/docs/Web/JavaScript', color: '#f7df1e' },
+  { id: 'dart', name: 'Dart', category: 'core', url: 'https://dart.dev/', color: '#0175c2' },
+  { id: 'hono', name: 'Hono', category: 'core', url: 'https://hono.dev/', color: '#e36002' },
   { id: 'vite', name: 'Vite', category: 'build', url: 'https://vitejs.dev/', color: '#646cff' },
   { id: 'uniapp', name: 'uni-app', category: 'mobile', url: 'https://uniapp.dcloud.net.cn/', color: '#2b9939' },
+  { id: 'flutter', name: 'Flutter', category: 'mobile', url: 'https://flutter.dev/', color: '#02569b' },
   { id: 'element-plus', name: 'Element Plus', category: 'ui', url: 'https://element-plus.org/', color: '#409eff' },
   { id: 'element-ui', name: 'Element UI', category: 'ui', url: 'https://element.eleme.io/', color: '#409eff' },
   { id: 'vant', name: 'Vant', category: 'ui', url: 'https://vant-ui.github.io/vant/', color: '#1989fa' },
@@ -75,6 +80,8 @@ const techStackBase = [
   { id: 'mqtt', name: 'MQTT / IoT', category: 'iot', url: 'https://mqtt.org/', color: '#6366f1' },
   { id: 'd1', name: 'Cloudflare D1', category: 'infra', url: 'https://developers.cloudflare.com/d1/', color: '#f38020' },
   { id: 'pages', name: 'Pages Functions', category: 'infra', url: 'https://developers.cloudflare.com/pages/', color: '#f38020' },
+  { id: 'workers', name: 'Workers', category: 'infra', url: 'https://developers.cloudflare.com/workers/', color: '#f38020' },
+  { id: 'kv', name: 'Cloudflare KV', category: 'infra', url: 'https://developers.cloudflare.com/kv/', color: '#f38020' },
   { id: 'r2', name: 'Cloudflare R2', category: 'infra', url: 'https://developers.cloudflare.com/r2/', color: '#f38020' },
   { id: 'chartjs', name: 'Chart.js', category: 'viz', url: 'https://www.chartjs.org/', color: '#ff6384' },
   { id: 'jenkins', name: 'Jenkins', category: 'ops', url: 'https://www.jenkins.io/', color: '#d33833' },
@@ -87,6 +94,61 @@ const techStackBase = [
 ]
 
 const projectsBase = [
+  {
+    id: 'ink-shelf',
+    period: '2026.09',
+    repo: 'https://github.com/vaezxw/novel-reader',
+    tech: ['flutter', 'dart'],
+    zh: {
+      name: '墨架 · InkShelf',
+      summary:
+        'Flutter 本地小说阅读器：Android / iOS 一套代码，本地书架 + 可配置书源，不预置任何书城。',
+      bullets: [
+        '本地 TXT 导入、编码识别、自动分章；阅读页支持进度记忆、目录、字号行距与昼夜主题',
+        '书源引擎兼容阅读 / Legado 风格 JSON：粘贴或导入、跨源搜索、按章拉取并本地缓存',
+        'Riverpod 状态管理；无 Mac 时用 Codemagic 打未签名 IPA，Sideloadly 装到 iPhone 自用',
+      ],
+    },
+    en: {
+      name: 'InkShelf',
+      summary:
+        'Flutter local novel reader — one codebase for Android / iOS, local shelf plus configurable book sources, no built-in store.',
+      bullets: [
+        'Import local TXT with encoding detection and auto chapter split; reader remembers progress, TOC, font size/leading, and day/night theme',
+        'Book-source engine compatible with Legado-style JSON: paste or import, search across sources, fetch chapters into local cache',
+        'Riverpod state; unsigned IPA via Codemagic when no Mac, install on iPhone with Sideloadly',
+      ],
+    },
+  },
+  {
+    id: 'genius-desk',
+    period: '2026.09',
+    url: 'https://finance-analytics-web.2148983461.workers.dev/dashboard',
+    repo: 'https://github.com/vaezxw/finance-analytics',
+    tech: ['nextjs', 'react', 'ts', 'hono', 'workers', 'd1', 'kv', 'r2'],
+    zh: {
+      name: '天才交易台',
+      summary:
+        'A 股延迟盯盘台 + 全球标的研究页：指数、资金流向、涨跌分布、板块联动与规则因子预测，部署在 Cloudflare Workers。',
+      bullets: [
+        '盯盘台：四大指数条、分时、资金流向、情绪综述、涨跌分布、快讯、领涨板块联动',
+        '数据层：Hono API Worker 聚合东方财富延迟接口（失败回退腾讯行情），KV 60s 缓存；全球页走 Yahoo 延迟行情',
+        '预测页：ret5 / RSI / 均线距离等规则因子打分；OpenNext 把 Next.js 15 部署到 Workers，另有 D1 / R2 研究数据',
+        '公开延迟数据，仅供学习研究，不构成投资建议',
+      ],
+    },
+    en: {
+      name: 'Genius Trading Desk',
+      summary:
+        'Delayed A-share desk plus global research: indices, flows, breadth, board leadership, and rule-based factor scores — on Cloudflare Workers.',
+      bullets: [
+        'Desk: four-index tape, intraday, capital flows, sentiment, breadth buckets, flash news, leading boards',
+        'Data: Hono API Worker over East Money delayed APIs (Tencent fallback), 60s KV cache; global page uses Yahoo delayed quotes',
+        'Predictions: rule factors (ret5 / RSI / MA distance); Next.js 15 via OpenNext on Workers, plus D1 / R2 research storage',
+        'Public delayed data for learning only — not investment advice',
+      ],
+    },
+  },
   {
     id: 'mohhen',
     period: '2026',
