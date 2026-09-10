@@ -42,6 +42,27 @@
           {{ t('share.system') }}
         </button>
       </div>
+      <div class="share-mode" role="group" :aria-label="t('share.longImageModeHint')">
+        <button
+          type="button"
+          class="share-mode-btn"
+          :class="{ active: posterMode === 'compact' }"
+          :aria-pressed="posterMode === 'compact'"
+          @click="posterMode = 'compact'"
+        >
+          {{ t('share.longImageModeCompact') }}
+        </button>
+        <button
+          type="button"
+          class="share-mode-btn"
+          :class="{ active: posterMode === 'detailed' }"
+          :aria-pressed="posterMode === 'detailed'"
+          @click="posterMode = 'detailed'"
+        >
+          {{ t('share.longImageModeDetailed') }}
+        </button>
+      </div>
+      <p class="muted share-mode-hint">{{ t('share.longImageModeHint') }}</p>
       <button
         type="button"
         class="share-long-btn"
@@ -60,7 +81,12 @@
 
   <Teleport to="body">
     <div class="poster-host" aria-hidden="true" inert>
-      <AboutSharePoster ref="posterRef" :qr-src="posterQr" :page-url="pageUrl" />
+      <AboutSharePoster
+        ref="posterRef"
+        :qr-src="posterQr"
+        :page-url="pageUrl"
+        :detail-mode="posterMode"
+      />
     </div>
 
     <div
@@ -127,6 +153,7 @@ const wrapRef = ref(null)
 const posterRef = ref(null)
 const open = ref(false)
 const capturing = ref(false)
+const posterMode = ref('compact')
 const hint = ref('')
 const hintOk = ref(false)
 const nativeShareAvailable = ref(false)
@@ -233,7 +260,9 @@ async function onGenerateLongImage() {
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewBlob.value = blob
     previewUrl.value = URL.createObjectURL(blob)
-    const file = new File([blob], 'mohhen-about.png', { type: 'image/png' })
+    const fileName =
+      posterMode.value === 'detailed' ? 'mohhen-about-detailed.png' : 'mohhen-about.png'
+    const file = new File([blob], fileName, { type: 'image/png' })
     canShareImage.value = canShareFiles([file])
     previewOpen.value = true
     open.value = false
@@ -244,14 +273,18 @@ async function onGenerateLongImage() {
   }
 }
 
+function posterFileName() {
+  return posterMode.value === 'detailed' ? 'mohhen-about-detailed.png' : 'mohhen-about.png'
+}
+
 function onDownloadImage() {
   if (!previewBlob.value) return
-  downloadBlob(previewBlob.value, 'mohhen-about.png')
+  downloadBlob(previewBlob.value, posterFileName())
 }
 
 async function onShareImage() {
   if (!previewBlob.value) return
-  const file = new File([previewBlob.value], 'mohhen-about.png', { type: 'image/png' })
+  const file = new File([previewBlob.value], posterFileName(), { type: 'image/png' })
   try {
     await systemShare({
       title: recommendTitle.value,
@@ -367,7 +400,7 @@ onUnmounted(() => {
 
 .share-long-btn {
   width: 100%;
-  margin-top: 0.55rem;
+  margin-top: 0.35rem;
   border: 1px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
@@ -375,6 +408,35 @@ onUnmounted(() => {
   padding: 0.55rem 0.7rem;
   font-size: 0.85rem;
   font-weight: 650;
+}
+
+.share-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.share-mode-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.share-mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 650;
+}
+
+.share-mode-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.74rem;
+  text-align: center;
 }
 
 .share-long-btn:disabled {

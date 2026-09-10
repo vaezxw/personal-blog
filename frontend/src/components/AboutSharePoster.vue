@@ -48,6 +48,9 @@
           <span>{{ project.period }}</span>
         </div>
         <p>{{ project.summary }}</p>
+        <ul v-if="detailMode === 'detailed' && project.bullets?.length" class="poster-bullets">
+          <li v-for="(b, i) in project.bullets" :key="i">{{ b }}</li>
+        </ul>
         <div class="poster-tech">
           <span
             v-for="tid in project.tech"
@@ -81,6 +84,11 @@ import { useLocale } from '../composables/useLocale.js'
 defineProps({
   qrSrc: { type: String, default: '' },
   pageUrl: { type: String, default: '' },
+  detailMode: {
+    type: String,
+    default: 'compact',
+    validator: (v) => v === 'compact' || v === 'detailed',
+  },
 })
 
 const { t, profile, projects, techStack } = useLocale()
@@ -253,6 +261,17 @@ defineExpose({
   margin: 0 0 10px;
   color: #cbd5e1;
   font-size: 14px;
+}
+
+.poster-bullets {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.poster-bullets li + li {
+  margin-top: 5px;
 }
 
 .poster-foot {
