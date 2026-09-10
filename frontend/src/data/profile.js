@@ -100,6 +100,7 @@ const projectsBase = [
     id: 'ink-shelf',
     period: '2026.09',
     repo: 'https://github.com/vaezxw/novel-reader',
+    download: 'https://github.com/vaezxw/novel-reader/releases',
     tech: ['flutter', 'dart', 'riverpod', 'codemagic'],
     zh: {
       name: '墨架 · InkShelf',
