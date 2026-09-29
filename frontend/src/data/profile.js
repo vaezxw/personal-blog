@@ -15,7 +15,7 @@ const profileZh = {
     '参与设备生命周期、营收系统、智慧工单 App、三端合同签署等多线并行开发。',
     '擅长表单-heavy 业务、报表导出、PDF 预览签署、uni-app 跨端、浏览器兼容与 Jenkins 工程化落地。',
     '开源维护 uni-app 合同签署组件库，已发布 DCloud 插件市场（MIT 免费）。',
-    '业余项目：本博客「墨痕」、A 股延迟盯盘台「天才交易台」、Flutter 跨端「墨架」与原生 SwiftUI「墨架 iOS」。',
+    '业余项目：本博客「墨痕」、Cloudflare 网盘「Davflare」、A 股延迟盯盘台「天才交易台」、Flutter 跨端「墨架」与原生 SwiftUI「墨架 iOS」。',
   ],
   highlights: [
     { label: '多项目并行', value: '6+ 产品线' },
@@ -41,7 +41,7 @@ const profileEn = {
     'Shipped in parallel across device lifecycle, revenue systems, field-work apps, and multi-end contract signing.',
     'Comfortable with form-heavy flows, report exports, PDF preview & signing, uni-app, browser quirks, and Jenkins-based delivery.',
     'Maintains an open-source uni-app contract-signing UI kit on the DCloud plugin market (MIT, free).',
-    'Side projects: this blog “Mohhen”, delayed A-share desk “Genius Trading Desk”, Flutter “InkShelf”, and native SwiftUI “InkShelf iOS”.',
+    'Side projects: this blog “Mohhen”, Cloudflare drive “Davflare”, delayed A-share desk “Genius Trading Desk”, Flutter “InkShelf”, and native SwiftUI “InkShelf iOS”.',
   ],
   highlights: [
     { label: 'Parallel delivery', value: '6+ product lines' },
@@ -71,6 +71,7 @@ const techStackBase = [
   { id: 'codemagic', name: 'Codemagic', category: 'ops', url: 'https://codemagic.io/', color: '#00d2b8' },
   { id: 'element-plus', name: 'Element Plus', category: 'ui', url: 'https://element-plus.org/', color: '#409eff' },
   { id: 'element-ui', name: 'Element UI', category: 'ui', url: 'https://element.eleme.io/', color: '#409eff' },
+  { id: 'mui', name: 'MUI', category: 'ui', url: 'https://mui.com/', color: '#007fff' },
   { id: 'vant', name: 'Vant', category: 'ui', url: 'https://vant-ui.github.io/vant/', color: '#1989fa' },
   { id: 'echarts', name: 'ECharts', category: 'viz', url: 'https://echarts.apache.org/', color: '#aa344d' },
   {
@@ -100,6 +101,35 @@ const techStackBase = [
 ]
 
 const projectsBase = [
+  {
+    id: 'davflare',
+    period: '2026.09',
+    url: 'https://davflare-8fq.pages.dev',
+    repo: 'https://github.com/vaezxw/davflare',
+    tech: ['react', 'ts', 'vite', 'mui', 'pages', 'r2'],
+    zh: {
+      name: 'Davflare · 个人网盘',
+      summary:
+        '基于 Cloudflare Pages + R2 的免费个人网盘：Web 管理、WebDAV、图床与静态站、多账号隔离与账号管理页。',
+      bullets: [
+        '前端 React + TypeScript + Vite + MUI；后端 Pages Functions 直连 R2，零传统服务器',
+        'WebDAV Class 1/2、分块上传与缩略图、分享链接 / 回收站、API Key 与 MCP（约 25 个工具）',
+        '多用户：改密、管理员建号、家目录隔离；账号页懒加载目录树（数量 / 总大小）与头像（预设 + 上传）',
+        '独立图床域名、功能开关可热关入口；附 CLI 与 Chrome 扩展；源码 fork 自开源 Davflare 并持续自用增强',
+      ],
+    },
+    en: {
+      name: 'Davflare · Personal Drive',
+      summary:
+        'Free personal drive on Cloudflare Pages + R2: web UI, WebDAV, image host & static sites, multi-user homes, and an accounts console.',
+      bullets: [
+        'React + TypeScript + Vite + MUI front end; Pages Functions talk to R2 — no classic server',
+        'WebDAV Class 1/2, chunked uploads & thumbnails, share links / trash, API keys and MCP (~25 tools)',
+        'Multi-user: password change, admin-created accounts, home jails; accounts page with lazy file tree (counts / size) and avatars (presets + upload)',
+        'Separate image-host hostname, feature flags to gate surfaces; CLI + Chrome extension; forked from open-source Davflare with ongoing personal upgrades',
+      ],
+    },
+  },
   {
     id: 'ink-shelf-ios',
     period: '2026.09',
