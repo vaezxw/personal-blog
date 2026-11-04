@@ -2,8 +2,14 @@
   <section class="about about-page">
     <div class="about-toolbar">
       <p class="muted about-toolbar-hint">{{ t('share.aboutToolbarHint') }}</p>
-      <AboutShareBar />
+      <div class="about-toolbar-actions">
+        <button type="button" class="resume-entry" @click="resumeStudioOpen = true">
+          {{ t('about.resumeOpen') }}
+        </button>
+        <AboutShareBar />
+      </div>
     </div>
+    <ResumeStudio v-model:open="resumeStudioOpen" />
     <div class="terminal-bar">
       <span class="dot red"></span>
       <span class="dot yellow"></span>
@@ -169,6 +175,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useLocale } from '../composables/useLocale.js'
 import AboutShareBar from '../components/AboutShareBar.vue'
+import ResumeStudio from '../components/resume/ResumeStudio.vue'
 
 const {
   t,
@@ -180,6 +187,7 @@ const {
   techForProject,
 } = useLocale()
 
+const resumeStudioOpen = ref(false)
 const selectedTech = ref('')
 const selectedProject = ref('')
 const activeCategory = ref('')
@@ -250,7 +258,9 @@ function onDocumentClick(event) {
     el.closest('.lang-toggle') ||
     el.closest('.theme-toggle') ||
     el.closest('.about-share') ||
-    el.closest('.long-mask')
+    el.closest('.long-mask') ||
+    el.closest('.resume-entry') ||
+    el.closest('.studio-root')
   ) {
     return
   }
@@ -298,6 +308,32 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.about-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.resume-entry {
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.38rem 0.85rem;
+  font-weight: 650;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.resume-entry:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  transform: translateY(-1px);
 }
 
 .about-toolbar-hint {
