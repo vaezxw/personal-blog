@@ -66,6 +66,14 @@
                 {{ statusHint }}
               </p>
               <p v-if="error" class="status-hint error">{{ error }}</p>
+              <button
+                v-if="needReload"
+                type="button"
+                class="reload-btn"
+                @click="reloadApp"
+              >
+                {{ t('about.resumeReload') }}
+              </button>
             </aside>
 
             <div class="studio-preview-wrap">
@@ -120,6 +128,7 @@ const generating = ref(false)
 const exporting = ref(false)
 const copied = ref(false)
 const error = ref('')
+const needReload = ref(false)
 const statusHint = ref('')
 const step = ref(1)
 const previewRef = ref(null)
@@ -161,6 +170,7 @@ watch(
       return
     }
     error.value = ''
+    needReload.value = false
     statusHint.value = ''
     if (canUse.value) seedDraft()
   },
@@ -254,10 +264,15 @@ async function onGenerate() {
   }
 }
 
+function reloadApp() {
+  window.location.reload()
+}
+
 async function onExportPdf() {
   if (!draft.value || exporting.value) return
   exporting.value = true
   error.value = ''
+  needReload.value = false
   try {
     const el = previewRef.value?.rootRef
     await exportResumePdfFromElement(el, draft.value)
@@ -265,7 +280,15 @@ async function onExportPdf() {
     step.value = 4
   } catch (err) {
     const msg = String(err?.message || '')
-    if (/unsupported color function|color-mix|parse.*color/i.test(msg)) {
+    const chunkFailed =
+      err?.code === 'CHUNK_LOAD_FAILED' ||
+      /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed/i.test(
+        msg,
+      )
+    if (chunkFailed) {
+      error.value = t('about.resumePdfChunkFailed')
+      needReload.value = true
+    } else if (/unsupported color function|color-mix|parse.*color/i.test(msg)) {
       error.value = t('about.resumePdfColorFailed')
     } else {
       error.value = msg || t('about.resumePdfFailed')
@@ -456,6 +479,17 @@ async function onCopyMd() {
 
 .status-hint.error {
   color: #ef4444;
+}
+
+.reload-btn {
+  justify-self: start;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 @keyframes fade-in {

@@ -221,13 +221,27 @@ function prepareCloneDocument(clonedDoc, root) {
   clonedDoc.head.appendChild(style)
 }
 
+async function loadPdfDeps() {
+  try {
+    const [{ default: html2canvas }, jspdfMod] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+    return { html2canvas, jsPDF: jspdfMod.jsPDF }
+  } catch (err) {
+    const error = new Error(err?.message || 'chunk load failed')
+    error.code = 'CHUNK_LOAD_FAILED'
+    error.cause = err
+    throw error
+  }
+}
+
 /**
  * Capture a preview DOM node to multi-page A4 PDF (CJK-safe via raster).
  */
 export async function exportResumePdfFromElement(el, draft) {
   if (!el) throw new Error('preview missing')
-  const html2canvas = (await import('html2canvas')).default
-  const { jsPDF } = await import('jspdf')
+  const { html2canvas, jsPDF } = await loadPdfDeps()
 
   const MARGIN = 28
   const host = document.createElement('div')

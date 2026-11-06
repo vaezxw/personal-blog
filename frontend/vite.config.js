@@ -42,10 +42,11 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,ico,svg,png,webp,woff2}'],
+        // Keep jspdf/html2canvas in precache so resume PDF export
+        // still works when an older app shell is briefly retained.
         globIgnores: [
           '**/pdf.worker*.mjs',
           '**/pdf-*.js',
-          '**/jspdf*.js',
           '**/mermaid.core*.js',
           '**/cytoscape*.js',
           '**/katex*.js',
