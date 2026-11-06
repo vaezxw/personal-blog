@@ -757,6 +757,7 @@ export const messages = {
       resumeGenerateFailed: '生成失败，请稍后重试',
       resumePdfDone: 'PDF 已下载',
       resumePdfFailed: 'PDF 导出失败',
+      resumePdfColorFailed: 'PDF 导出失败：页面样式含浏览器新颜色函数，请刷新后重试',
       resumeMdDone: 'Markdown 已下载',
       resumeCopyFailed: '复制失败',
       resumePreviewEmpty: '点击生成后，这里会显示简历预览',
@@ -1539,6 +1540,8 @@ export const messages = {
       resumeGenerateFailed: 'Generation failed. Please try again.',
       resumePdfDone: 'PDF downloaded',
       resumePdfFailed: 'PDF export failed',
+      resumePdfColorFailed:
+        'PDF export failed: page styles use unsupported CSS color functions. Refresh and try again.',
       resumeMdDone: 'Markdown downloaded',
       resumeCopyFailed: 'Copy failed',
       resumePreviewEmpty: 'Generate a resume to preview it here',

@@ -264,7 +264,12 @@ async function onExportPdf() {
     statusHint.value = t('about.resumePdfDone')
     step.value = 4
   } catch (err) {
-    error.value = err?.message || t('about.resumePdfFailed')
+    const msg = String(err?.message || '')
+    if (/unsupported color function|color-mix|parse.*color/i.test(msg)) {
+      error.value = t('about.resumePdfColorFailed')
+    } else {
+      error.value = msg || t('about.resumePdfFailed')
+    }
   } finally {
     exporting.value = false
   }

@@ -154,7 +154,7 @@ defineExpose({ rootRef })
     linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   color: #0f172a;
   box-shadow:
-    0 18px 40px color-mix(in srgb, #0f172a 18%, transparent),
+    0 18px 40px rgba(15, 23, 42, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
   overflow: hidden;
 }

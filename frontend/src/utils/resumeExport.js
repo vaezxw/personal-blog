@@ -39,6 +39,189 @@ async function waitForImages(el) {
 }
 
 /**
+ * html2canvas cannot parse modern CSS color functions (color-mix / color()).
+ * Export clone gets a self-contained hex/rgba stylesheet only.
+ */
+const EXPORT_CSS = `
+[data-resume-export], [data-resume-export] * {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  box-sizing: border-box;
+}
+[data-resume-export] .resume-sheet {
+  position: relative;
+  width: 794px;
+  margin: 0;
+  min-height: 420px;
+  padding: 1.6rem 1.55rem 1.8rem;
+  border-radius: 0;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: none;
+  overflow: visible;
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", "Segoe UI", Arial, sans-serif;
+}
+[data-resume-export] .resume-skeleton,
+[data-resume-export] .resume-edit-only,
+[data-resume-export] [data-resume-edit],
+[data-resume-export] .empty {
+  display: none !important;
+}
+[data-resume-export] .sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.95rem;
+  border-bottom: 2px solid #0f766e;
+  margin-bottom: 1rem;
+}
+[data-resume-export] .sheet-head h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+}
+[data-resume-export] .role {
+  margin: 0.35rem 0 0;
+  color: #334155;
+  font-weight: 600;
+}
+[data-resume-export] .tagline {
+  margin: 0.55rem 0 0;
+  color: #475569;
+  line-height: 1.55;
+}
+[data-resume-export] .contacts {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+  font-size: 0.82rem;
+}
+[data-resume-export] .contacts a {
+  color: #0f766e;
+  text-decoration: none;
+  font-weight: 600;
+}
+[data-resume-export] .sheet-section {
+  margin-top: 1rem;
+}
+[data-resume-export] .sheet-section h2 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  color: #0f766e;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+[data-resume-export] .sheet-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+[data-resume-export] .sheet-section li {
+  margin: 0.25rem 0;
+  line-height: 1.55;
+  color: #0f172a;
+}
+[data-resume-export] .sheet-section p {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.55;
+}
+[data-resume-export] .hl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+[data-resume-export] .hl {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  background: #f8fafc;
+}
+[data-resume-export] .hl strong {
+  display: block;
+  color: #0f766e;
+}
+[data-resume-export] .hl span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+[data-resume-export] .skill-rows {
+  display: grid;
+  gap: 0.35rem;
+}
+[data-resume-export] .skill-rows p {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+[data-resume-export] .project-list {
+  display: grid;
+  gap: 0.85rem;
+}
+[data-resume-export] .project-item {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+[data-resume-export] .project-item.excluded {
+  display: none !important;
+}
+[data-resume-export] .project-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+[data-resume-export] .project-top h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+[data-resume-export] .period {
+  margin: 0.15rem 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+[data-resume-export] .project-summary {
+  margin: 0.4rem 0 0.25rem;
+  color: #334155;
+  line-height: 1.5;
+}
+[data-resume-export] .tech-line {
+  margin: 0.4rem 0 0;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+`
+
+function prepareCloneDocument(clonedDoc, root) {
+  root.style.transform = 'none'
+  root.style.left = '0'
+  root.style.top = '0'
+  root.style.opacity = '1'
+  root.style.visibility = 'visible'
+  root.style.position = 'static'
+
+  root.querySelectorAll('[data-resume-edit], .resume-edit-only, .resume-skeleton').forEach((node) => {
+    node.remove()
+  })
+
+  // Drop page stylesheets so html2canvas never sees color-mix / color().
+  clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => node.remove())
+
+  const style = clonedDoc.createElement('style')
+  style.textContent = EXPORT_CSS
+  clonedDoc.head.appendChild(style)
+}
+
+/**
  * Capture a preview DOM node to multi-page A4 PDF (CJK-safe via raster).
  */
 export async function exportResumePdfFromElement(el, draft) {
@@ -47,9 +230,6 @@ export async function exportResumePdfFromElement(el, draft) {
   const { jsPDF } = await import('jspdf')
 
   const MARGIN = 28
-  const clone = el.cloneNode(true)
-  clone.querySelectorAll('[data-resume-edit], .resume-edit-only').forEach((node) => node.remove())
-
   const host = document.createElement('div')
   host.setAttribute('data-resume-export', '1')
   host.style.cssText = [
@@ -66,6 +246,8 @@ export async function exportResumePdfFromElement(el, draft) {
     'overflow:visible',
     'transform:translateX(-120%)',
   ].join(';')
+
+  const clone = el.cloneNode(true)
   host.appendChild(clone)
   document.body.appendChild(host)
 
@@ -85,12 +267,8 @@ export async function exportResumePdfFromElement(el, draft) {
       height,
       windowWidth: width,
       windowHeight: height,
-      onclone(_doc, node) {
-        node.style.transform = 'none'
-        node.style.left = '0'
-        node.style.top = '0'
-        node.style.opacity = '1'
-        node.style.visibility = 'visible'
+      onclone(clonedDoc, node) {
+        prepareCloneDocument(clonedDoc, node)
       },
     })
 
