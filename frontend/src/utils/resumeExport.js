@@ -1,6 +1,10 @@
 import { downloadBlob, downloadText } from './download.js'
 import { resumeToMarkdown } from './resumeSchema.js'
 
+/** A4 @ 96dpi ≈ 794×1123; keep export width fixed for stable pagination. */
+const EXPORT_WIDTH_PX = 794
+const PAGE_OVERLAP_PX = 24
+
 function safeFilenamePart(value) {
   return String(value || 'resume')
     .trim()
@@ -50,18 +54,24 @@ const EXPORT_CSS = `
   filter: none !important;
   box-sizing: border-box;
 }
+[data-resume-export] {
+  width: ${EXPORT_WIDTH_PX}px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
 [data-resume-export] .resume-sheet {
   position: relative;
-  width: 794px;
+  width: ${EXPORT_WIDTH_PX}px !important;
+  max-width: ${EXPORT_WIDTH_PX}px !important;
   margin: 0;
-  min-height: 420px;
-  padding: 1.6rem 1.55rem 1.8rem;
-  border-radius: 0;
-  background: #ffffff;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0 !important;
+  background: #ffffff !important;
   color: #0f172a;
-  box-shadow: none;
-  overflow: visible;
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", "Segoe UI", Arial, sans-serif;
+  box-shadow: none !important;
+  overflow: visible !important;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
 }
 [data-resume-export] .resume-skeleton,
 [data-resume-export] .resume-edit-only,
@@ -69,105 +79,176 @@ const EXPORT_CSS = `
 [data-resume-export] .empty {
   display: none !important;
 }
-[data-resume-export] .sheet-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 0.95rem;
-  border-bottom: 2px solid #0f766e;
-  margin-bottom: 1rem;
+[data-resume-export] .sheet-banner {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+  padding: 22px 24px 20px;
+  background: #0f766e;
+  color: #f8fafc;
+  border-radius: 0;
 }
-[data-resume-export] .sheet-head h1 {
+[data-resume-export] .banner-kicker {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  opacity: 0.85;
+  color: #ccfbf1;
+}
+[data-resume-export] .sheet-banner h1 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: 0.02em;
-  color: #0f172a;
+  font-weight: 750;
+  color: #ffffff;
 }
 [data-resume-export] .role {
-  margin: 0.35rem 0 0;
-  color: #334155;
+  margin: 8px 0 0;
   font-weight: 600;
+  color: #ccfbf1;
+  font-size: 14px;
 }
 [data-resume-export] .tagline {
-  margin: 0.55rem 0 0;
-  color: #475569;
+  margin: 8px 0 0;
+  color: #ecfeff;
   line-height: 1.55;
+  font-size: 13px;
 }
-[data-resume-export] .contacts {
+[data-resume-export] .banner-contacts {
   display: grid;
-  gap: 0.25rem;
+  align-content: start;
+  gap: 6px;
   justify-items: end;
-  font-size: 0.82rem;
+  font-size: 12px;
 }
-[data-resume-export] .contacts a {
-  color: #0f766e;
+[data-resume-export] .banner-contacts a,
+[data-resume-export] .banner-contacts .edu {
+  color: #ecfeff;
   text-decoration: none;
   font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  max-width: 100%;
+  word-break: break-word;
+}
+[data-resume-export] .sheet-body {
+  padding: 18px 24px 28px;
+  background: #ffffff;
 }
 [data-resume-export] .sheet-section {
-  margin-top: 1rem;
+  margin-top: 16px;
+  page-break-inside: avoid;
+}
+[data-resume-export] .sheet-section:first-child {
+  margin-top: 0;
 }
 [data-resume-export] .sheet-section h2 {
-  margin: 0 0 0.45rem;
-  font-size: 0.95rem;
-  color: #0f766e;
-  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 750;
 }
-[data-resume-export] .sheet-section ul {
+[data-resume-export] .sheet-section h2 span {
+  flex: none;
+}
+[data-resume-export] .sheet-section h2::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: #99f6e4;
+}
+[data-resume-export] .plain-list {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 18px;
 }
-[data-resume-export] .sheet-section li {
-  margin: 0.25rem 0;
+[data-resume-export] .plain-list li {
+  margin: 4px 0;
   line-height: 1.55;
-  color: #0f172a;
-}
-[data-resume-export] .sheet-section p {
-  margin: 0;
-  color: #0f172a;
-  line-height: 1.55;
+  color: #1e293b;
+  font-size: 13px;
 }
 [data-resume-export] .hl-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 [data-resume-export] .hl {
-  border: 1px solid #dbe3ee;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 0.55rem 0.7rem;
+  padding: 10px 8px;
   background: #f8fafc;
+  text-align: center;
 }
 [data-resume-export] .hl strong {
   display: block;
   color: #0f766e;
+  font-size: 14px;
 }
 [data-resume-export] .hl span {
-  font-size: 0.8rem;
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
   color: #64748b;
 }
-[data-resume-export] .skill-rows {
+[data-resume-export] .skill-groups {
   display: grid;
-  gap: 0.35rem;
+  gap: 8px;
 }
-[data-resume-export] .skill-rows p {
-  margin: 0;
+[data-resume-export] .skill-group {
   display: grid;
-  grid-template-columns: 7.5rem 1fr;
-  gap: 0.55rem;
-  font-size: 0.9rem;
-  color: #0f172a;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+[data-resume-export] .skill-cat {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+[data-resume-export] .skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+[data-resume-export] .tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #115e59;
+  border: 1px solid #99f6e4;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+[data-resume-export] .tag.soft {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #e2e8f0;
+  font-weight: 600;
 }
 [data-resume-export] .project-list {
   display: grid;
-  gap: 0.85rem;
+  gap: 0;
 }
 [data-resume-export] .project-item {
-  padding: 0.65rem 0.7rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
+  padding: 12px 0 14px;
+  border-bottom: 1px dashed #e2e8f0;
+  page-break-inside: avoid;
+}
+[data-resume-export] .project-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 [data-resume-export] .project-item.excluded {
   display: none !important;
@@ -175,31 +256,44 @@ const EXPORT_CSS = `
 [data-resume-export] .project-top {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 10px;
   align-items: flex-start;
 }
-[data-resume-export] .project-top h3 {
+[data-resume-export] .project-title-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+[data-resume-export] .project-title-wrap h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 15px;
   color: #0f172a;
+  font-weight: 700;
 }
 [data-resume-export] .period {
-  margin: 0.15rem 0 0;
   color: #64748b;
-  font-size: 0.82rem;
-}
-[data-resume-export] .project-summary {
-  margin: 0.4rem 0 0.25rem;
-  color: #334155;
-  line-height: 1.5;
-}
-[data-resume-export] .tech-line {
-  margin: 0.4rem 0 0;
-  color: #0f766e;
-  font-size: 0.8rem;
+  font-size: 12px;
   font-weight: 600;
 }
+[data-resume-export] .project-summary {
+  margin: 6px 0 4px;
+  color: #334155;
+  line-height: 1.55;
+  font-size: 13px;
+}
+[data-resume-export] .tech-tags {
+  margin-top: 8px;
+}
 `
+
+function injectExportStyles(doc) {
+  doc.querySelectorAll('style[data-resume-export-style]').forEach((node) => node.remove())
+  const style = doc.createElement('style')
+  style.setAttribute('data-resume-export-style', '1')
+  style.textContent = EXPORT_CSS
+  doc.head.appendChild(style)
+}
 
 function prepareCloneDocument(clonedDoc, root) {
   root.style.transform = 'none'
@@ -208,17 +302,19 @@ function prepareCloneDocument(clonedDoc, root) {
   root.style.opacity = '1'
   root.style.visibility = 'visible'
   root.style.position = 'static'
+  root.style.width = `${EXPORT_WIDTH_PX}px`
 
   root.querySelectorAll('[data-resume-edit], .resume-edit-only, .resume-skeleton').forEach((node) => {
     node.remove()
   })
+  root.querySelectorAll('.project-item.excluded').forEach((node) => node.remove())
 
   // Drop page stylesheets so html2canvas never sees color-mix / color().
-  clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => node.remove())
-
-  const style = clonedDoc.createElement('style')
-  style.textContent = EXPORT_CSS
-  clonedDoc.head.appendChild(style)
+  clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => {
+    if (node.getAttribute('data-resume-export-style') === '1') return
+    node.remove()
+  })
+  injectExportStyles(clonedDoc)
 }
 
 async function loadPdfDeps() {
@@ -243,15 +339,16 @@ export async function exportResumePdfFromElement(el, draft) {
   if (!el) throw new Error('preview missing')
   const { html2canvas, jsPDF } = await loadPdfDeps()
 
-  const MARGIN = 28
+  const MARGIN = 22
   const host = document.createElement('div')
   host.setAttribute('data-resume-export', '1')
   host.style.cssText = [
     'position:fixed',
     'left:0',
     'top:0',
-    'width:794px',
+    `width:${EXPORT_WIDTH_PX}px`,
     'padding:0',
+    'margin:0',
     'box-sizing:border-box',
     'background:#ffffff',
     'color:#0f172a',
@@ -262,16 +359,30 @@ export async function exportResumePdfFromElement(el, draft) {
   ].join(';')
 
   const clone = el.cloneNode(true)
+  clone.classList.remove('ready')
+  clone.style.width = `${EXPORT_WIDTH_PX}px`
+  clone.style.maxWidth = `${EXPORT_WIDTH_PX}px`
+  clone.style.borderRadius = '0'
+  clone.style.boxShadow = 'none'
+  clone.style.overflow = 'visible'
+  clone.querySelectorAll('[data-resume-edit], .resume-edit-only, .resume-skeleton').forEach((node) => {
+    node.remove()
+  })
+  clone.querySelectorAll('.project-item.excluded').forEach((node) => node.remove())
+
   host.appendChild(clone)
   document.body.appendChild(host)
+  injectExportStyles(document)
 
   try {
     if (document.fonts?.ready) await document.fonts.ready
     await waitForImages(host)
+    // Let export CSS settle before measuring.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     void host.offsetHeight
 
-    const width = Math.max(1, Math.ceil(host.scrollWidth))
-    const height = Math.max(1, Math.ceil(host.scrollHeight))
+    const width = EXPORT_WIDTH_PX
+    const height = Math.max(1, Math.ceil(Math.max(host.scrollHeight, clone.scrollHeight)))
     const canvas = await html2canvas(host, {
       scale: 2,
       backgroundColor: '#ffffff',
@@ -281,6 +392,8 @@ export async function exportResumePdfFromElement(el, draft) {
       height,
       windowWidth: width,
       windowHeight: height,
+      scrollX: 0,
+      scrollY: 0,
       onclone(clonedDoc, node) {
         prepareCloneDocument(clonedDoc, node)
       },
@@ -297,11 +410,13 @@ export async function exportResumePdfFromElement(el, draft) {
     const imgWidth = printableW
     const fullImgHeight = (canvas.height * imgWidth) / canvas.width
     const srcPageH = (printableH / fullImgHeight) * canvas.height
+    const overlap = Math.min(PAGE_OVERLAP_PX * 2, srcPageH * 0.04)
 
     let y = 0
     let page = 0
     while (y < canvas.height - 0.5) {
-      const sliceH = Math.min(srcPageH, canvas.height - y)
+      const remaining = canvas.height - y
+      const sliceH = Math.min(srcPageH, remaining)
       const pageCanvas = document.createElement('canvas')
       pageCanvas.width = canvas.width
       pageCanvas.height = Math.max(1, Math.ceil(sliceH))
@@ -310,21 +425,23 @@ export async function exportResumePdfFromElement(el, draft) {
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
       ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
 
-      const imgData = pageCanvas.toDataURL('image/jpeg', 0.92)
+      const imgData = pageCanvas.toDataURL('image/jpeg', 0.94)
       const drawH = (sliceH / canvas.height) * fullImgHeight
       if (page > 0) doc.addPage()
       doc.addImage(imgData, 'JPEG', MARGIN, MARGIN, imgWidth, drawH)
 
-      y += sliceH
+      if (sliceH >= remaining - 0.5) break
+      y += Math.max(1, sliceH - overlap)
       page += 1
       if (page > 200) break
     }
 
-    if (page === 0) throw new Error('empty pdf')
+    if (page === 0 && canvas.height <= 0) throw new Error('empty pdf')
     const blob = doc.output('blob')
     downloadBlob(blob, resumePdfFilename(draft))
     return blob
   } finally {
+    document.querySelectorAll('style[data-resume-export-style]').forEach((node) => node.remove())
     host.remove()
   }
 }

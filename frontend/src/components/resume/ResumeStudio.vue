@@ -464,8 +464,13 @@ async function onCopyMd() {
 .studio-preview-wrap {
   min-width: 0;
   overflow: auto;
-  padding: 0.25rem;
-  max-height: min(70vh, 760px);
+  padding: 0.35rem;
+  max-height: min(74vh, 860px);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.65), transparent 30%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
 }
 
 .status-hint {
